@@ -9,7 +9,17 @@ class Headers:
     def __init__(self):
         if deviceId: self.deviceId = deviceId
         if not deviceId: self.deviceId = "22F67FB1D87173A6C295BD38AAE7806CCC0173C2A788F6D8E6D66C0A3F29D038C10CD30964D672AB56"
-        self.headers = {"NDCDEVICEID": self.deviceId}
+        self.headers = {
+            "NDCDEVICEID": self.deviceId,
+            "NDCLANG": "ar",
+            "Accept-Language": "ar-SY",
+            "SMDEVICEID": "6e28d4c5-2d25-4977-93ec-9a4ce077fb7b",
+            "Content-Type": "application/json; charset=utf-8",
+            "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 9; Redmi Note 8 Build/PKQ1.190616.001; com.narvii.amino.master/3.4.33578)",
+            "Host": "service.narvii.com",
+            "Connection": "Keep-Alive",
+            "Accept-Encoding": "gzip"
+        }
         self.web_headers = {
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36",
             "x-requested-with": "xmlhttprequest"
