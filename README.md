@@ -1,6 +1,6 @@
 <h1 align="center">
   <br>
-  <a href="https://discord.gg/wMB7H9Fp"><img src="https://cdn.discordapp.com/icons/873910232072466432/29edfa83a3c1c808cbac45f919751612.png?size=128" width="150"></a>
+  <a href="https://discord.gg/wMB7H9Fp"><img src="https://cdn.discordapp.com/icons/873910232072466432/a07b47688fe729eae554b2730534d5d5.png?size=128" width="150"></a>
   <br>
 </h1>
 
