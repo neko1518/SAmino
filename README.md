@@ -4,7 +4,7 @@
   <br>
 </h1>
 
-## More Info About Use -> [The Code Discord](https://discord.gg/wMB7H9Fp)
+## More Info About Use -> [Pysc Overall Discord](https://discord.gg/wMB7H9Fp)
 
 ### What is this lib?
 Python API to easily connect Amino servers
