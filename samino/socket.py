@@ -33,6 +33,7 @@ class Socket:
         else:
             self.socket_url = req.json()["result"]["url"]
             return self.socket_url
+ 
     def launch(self):
         self.headers = {
             'cookie': self.client.sid
