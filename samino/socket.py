@@ -1,5 +1,6 @@
 import time
 import json
+import requests
 import websocket
 from threading import Thread
 
@@ -9,7 +10,7 @@ from sys import _getframe as getframe
 # By SirLez
 # Solved By SirLez
 # and Reworked By SirLez lol ._.
-
+# and Sloved By Bovonos ،_،
 
 class Socket:
     def __init__(self, client):
@@ -25,14 +26,19 @@ class Socket:
 
     def on_error(self, error): print(error)
     def on_close(self): print("__CLOSED__")
-
+    
+    def web_socket_url(self):
+        req = requests.get(url = "https://aminoapps.com/api/chat/web-socket-url", headers={'cookie': self.client.sid})
+        if req.status_code != 200: return CheckExceptions(req.json())
+        else:
+            self.socket_url = req.json()["result"]["url"]
+            return self.socket_url
     def launch(self):
         self.headers = {
-            'NDCDEVICEID': self.client.deviceId,
-            'NDCAUTH': self.client.sid
+            'cookie': self.client.sid
         }
         self.socket = websocket.WebSocketApp(
-            f"{self.socket_url}/?signbody=22FCB673B848DDD4AD7869E3B374AD3CCE884F8D631C027AE596EC7D614638785015596A6F61A2E3AE%7C{int(time.time() * 1000)}",
+            self.web_socket_url(),
             on_message=self.handle_message,
             on_error=self.on_error,
             on_close=self.on_close,
