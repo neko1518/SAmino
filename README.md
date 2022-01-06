@@ -1,13 +1,12 @@
 <h1 align="center">
   <br>
-  <a href="https://discord.gg/8R6YAmApdV"><img src="https://h.top4top.io/p_2088b2c5m1.jpg" width="700"></a>
+  <a href="https://discord.gg/54E3j7eyDV"><img src="https://h.top4top.io/p_2088b2c5m1.jpg" width="600"></a>
   <br>
 </h1>
 
-## More Info About Use -> [Pysc Overall Discord](https://discord.gg/8R6YAmApdV)
 
 ### What is this lib?
-Python API to easily connect Amino servers
+Unofficial Amino API written in Python to easily connect Amino servers
 
 ### How to install?
 `pip install SAmino`
@@ -16,6 +15,4 @@ Python API to easily connect Amino servers
 ### API Reference documentation
 Soon...
 
-**CR**: SirLez
-
-**New**: Added more socket functions!
+**CR**: Pysc Overall
