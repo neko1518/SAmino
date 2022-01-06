@@ -9,7 +9,7 @@ deviceId = None
 class Headers:
     def __init__(self, data=None, lang: str = "ar-SY"):
         if deviceId: self.deviceId = deviceId
-        else: self.deviceId = c()
+        else: self.deviceId = c(uid)
 
         self.headers = {
             "NDCDEVICEID": self.deviceId,

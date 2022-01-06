@@ -5,7 +5,7 @@ README = (pathlib.Path(__file__).parent / "README.md").read_text()
 
 setup(
     name="samino",
-    version="1.6.4",
+    version="1.6.5",
     url="https://github.com/SirLez/SAmino",
     download_url="https://github.com/SirLez/SAmino/archive/refs/heads/main.zip",
     description="Amino Bots with python!",
@@ -58,6 +58,7 @@ setup(
         "websocket-client==0.57.0",
         "fake-useragent",
         "Amino-Socket",
+        "psutil",
     ],
     setup_requires=["wheel"],
     packages=find_packages(),
