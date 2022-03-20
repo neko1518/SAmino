@@ -1,43 +1,40 @@
+import os
+import json
+import base64
 import requests
+from uuid import UUID
 from time import timezone
+from typing import BinaryIO
+from binascii import hexlify
 from time import time as timestamp
 from json_minify import json_minify
 
-import os
-import base64
-from uuid import UUID
-from typing import BinaryIO
-from binascii import hexlify
-
-from .lib import *
 from .lib import api
+from .lib import headers
+from .lib.objects import *
 from .lib import CheckExceptions
 
 
 class Local:
-    def __init__(self, comId: str):
+    def __init__(self, comId: str, proxies: dict = None):
+        self.proxies = proxies
         self.comId = comId
         self.uid = headers.uid
         self.headers = headers.Headers().headers
         self.web_headers = headers.Headers().web_headers
 
     def get_video_rep_info(self, chatId: str):
-        req = requests.get(api(f"/x{self.comId}/s/chat/thread/{chatId}/avchat-reputation"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/chat/thread/{chatId}/avchat-reputation"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return RepInfo(req.json())
 
     def claim_video_rep(self, chatId: str):
-        info = self.get_video_rep_info(chatId)
-        reputation = info.json["reputation"]
-
-        if int(reputation) < 1: return CheckExceptions(f"reputation should be more than 1 (Your rep Now {int(reputation)}")
-
-        req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/avchat-reputation"), headers=self.headers)
+        req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/avchat-reputation"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        else: return Rep(req.json())
+        else: return RepInfo(req.json())
 
     def join_chat(self, chatId: str = None):
-        req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/member/{self.uid}"), headers=self.headers)
+        req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/member/{self.uid}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return Json(req.json())
 
@@ -56,39 +53,39 @@ class Local:
         else: return req.json()["mediaValue"]
 
     def leave_chat(self, chatId: str = None):
-        req = requests.delete(api(f"/x{self.comId}/s/chat/thread/{chatId}/member/{self.uid}"), headers=self.headers)
+        req = requests.delete(api(f"/x{self.comId}/s/chat/thread/{chatId}/member/{self.uid}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return Json(req.json())
 
     def get_member_following(self, userId: str = None, start: int = 0, size: int = 25):
-        req = requests.get(api(f"/x{self.comId}/s/user-profile/{userId}/joined?start={start}&size={size}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/user-profile/{userId}/joined?start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        else: return UserList(req.json()["userProfileList"])
+        else: return UserProfileList(req.json()["userProfileList"]).UserProfileList
 
     def get_member_followers(self, userId: str = None, start: int = 0, size: int = 25):
         req = requests.get(api(f"/x{self.comId}/s/user-profile/{userId}/joined?start={start}&size={size}"))
         if req.status_code != 200: return CheckExceptions(req.json())
-        else: return UserList(req.json()["userProfileList"])
+        else: return UserProfileList(req.json()["userProfileList"]).UserProfileList
 
     def get_chat_threads(self, start: int = 0, size: int = 25):
-        req = requests.get(api(f"/x{self.comId}/s/chat/thread?type=joined-me&start={start}&size={size}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/chat/thread?type=joined-me&start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        else: return MyChats(req.json()["threadList"])
+        else: return ThreadList(req.json()["threadList"]).ThreadList
 
     def get_member_visitors(self, userId: str, start: int = 0, size: int = 25):
-        req = requests.get(api(f"/x{self.comId}/s/user-profile/{userId}/visitors?start={start}&size={size}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/user-profile/{userId}/visitors?start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        return Visitors(req.json()["visitors"])
+        return VisitorsList(req.json()["visitors"]).VisitorsList
 
     def get_chat_messages(self, chatId: str, size: int = 25):
-        req = requests.get(api(f"/x{self.comId}/s/chat/thread/{chatId}/message?v=2&pagingType=t&size={size}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/chat/thread/{chatId}/message?v=2&pagingType=t&size={size}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        return ChatMessages(req.json()["messageList"])
+        return MessageList(req.json()["messageList"]).MessageList
 
     def get_user_info(self, userId: str):
-        req = requests.get(api(f"/x{self.comId}/s/user-profile/{userId}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/user-profile/{userId}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        return UserInfo(req.json()["userProfile"])
+        return UserProfile(req.json()["userProfile"]).UserProfile
 
     def get_wall_comments(self, userId: str, sorting: str, start: int = 0, size: int = 25):
         sorting = sorting.lower()
@@ -98,9 +95,9 @@ class Local:
         elif sorting == "top": sorting = "vote"
         else: raise TypeError("حط تايب يا حمار")  # Not me typed this its (a7rf)
 
-        req = requests.get(api(f"/x{self.comId}/s/user-profile/{userId}/comment?sort={sorting}&start={start}&size={size}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/user-profile/{userId}/comment?sort={sorting}&start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        return Comment(req.json()["commentList"])
+        return CommentList(req.json()["commentList"]).CommentList
 
     def get_all_users(self, type: str = "recent", start: int = 0, size: int = 25):
         if type == "recent": type = "recent"
@@ -109,32 +106,32 @@ class Local:
         elif type == "leaders": type = "leaders"
         elif type == "curators": type = "curators"
 
-        req = requests.get(api(f"/x{self.comId}/s/user-profile?type={type}&start={start}&size={size}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/user-profile?type={type}&start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        return UserList(req.json()["userProfileList"])
+        return UserProfileList(req.json()["userProfileList"]).UserProfileList
 
     def get_chat_members(self, start: int = 0, size: int = 25, chatId: str = None):
-        req = requests.get(api(f"/x{self.comId}/s/chat/thread/{chatId}/member?start={start}&size={size}&type=default&cv=1.2"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/chat/thread/{chatId}/member?start={start}&size={size}&type=default&cv=1.2"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        return UserList(req.json()["memberList"])
+        return UserProfileList(req.json()["memberList"]).UserProfileList
 
     def get_chat_info(self, chatId: str):
-        req = requests.get(api(f"/x{self.comId}/s/chat/thread/{chatId}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/chat/thread/{chatId}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        return ChatInfo(req.json()["thread"])
+        return Thread(req.json()["thread"]).Thread
 
     def get_online_users(self, start: int = 0, size: int = 25):
-        req = requests.get(api(f"/x{self.comId}/s/live-layer?topic=ndtopic:x{self.comId}:online-members&start={start}&size={size}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/live-layer?topic=ndtopic:x{self.comId}:online-members&start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        return UserList(req.json()["userProfileList"])
+        return UserProfileList(req.json()["userProfileList"]).UserProfileList
 
     def get_public_chats(self, type: str = "recommended", start: int = 0, size: int = 50):
-        req = requests.get(api(f"/x{self.comId}/s/chat/thread?type=public-all&filterType={type}&start={start}&size={size}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/chat/thread?type=public-all&filterType={type}&start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        else: return MyChats(req.json()["threadList"])
+        else: return ThreadList(req.json()["threadList"]).ThreadList
 
-    def send_message(self, chatId: str, message: str = None, messageType: int = 0, file: BinaryIO = None, fileType: str = None, replyTo: str = None, mentionUserIds: list = None, stickerId: str = None, embedId: str = None, embedType: int = None, embedLink: str = None, embedTitle: str = None, embedContent: str = None, embedImage: BinaryIO = None):
-        if message is not None and file is None: message = message.replace("<$", "‎‏").replace("$>", "‬‭")
+    def send_message(self, chatId: str, message: str = None, messageType: int = 0, file: BinaryIO = None, fileType: str = None, replyTo: str = None, mentionUserIds: list = None, stickerId: str = None, snippetLink: str = None, ytVideo: str = None, snippetImage: BinaryIO = None, embedId: str = None, embedType: int = None, embedLink: str = None, embedTitle: str = None, embedContent: str = None, embedImage: BinaryIO = None):
+        if message is not None and file is None: message = message.replace("[@", "‎‏").replace("@]", "‬‭")
 
         mentions = []
         if mentionUserIds:
@@ -154,6 +151,7 @@ class Local:
                 "mediaList": embedImage
             },
             "extensions": {"mentionedArray": mentions},
+            "clientRefId": int(timestamp() / 10 % 100000000),
             "timestamp": int(timestamp() * 1000)
         }
 
@@ -164,8 +162,23 @@ class Local:
             data["stickerId"] = stickerId
             data["type"] = 3
 
+        if snippetLink and snippetImage:
+            data["attachedObject"] = None
+            data["extensions"]["linkSnippetList"] = [{
+                "link": snippetLink,
+                "mediaType": 100,
+                "mediaUploadValue": base64.b64encode(snippetImage.read()).decode(),
+                "mediaUploadValueContentType": "image/png"
+            }]
+
+        if ytVideo:
+            data["content"] = None
+            data["mediaType"] = 103
+            data["mediaValue"] = ytVideo
+
         if file:
             data["content"] = None
+
             if fileType == "audio":
                 data["type"] = 2
                 data["mediaType"] = 110
@@ -173,21 +186,21 @@ class Local:
             elif fileType == "image":
                 data["mediaType"] = 100
                 data["mediaUploadValueContentType"] = "image/jpg"
-                data["mediaUhqEnabled"] = True
+                data["mediaUhqEnabled"] = False
 
             elif fileType == "gif":
                 data["mediaType"] = 100
                 data["mediaUploadValueContentType"] = "image/gif"
-                data["mediaUhqEnabled"] = True
+                data["mediaUhqEnabled"] = False
 
-            else:
-                raise TypeError("")
+            else: raise TypeError("")
 
             data["mediaUploadValue"] = base64.b64encode(file.read()).decode()
+            data["attachedObject"] = None
+            data["extensions"] = None
 
         data = json.dumps(data)
-
-        req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/message"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/message"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
@@ -214,7 +227,7 @@ class Local:
         return Json(req.json())
 
     def unfollow(self, userId: str):
-        req = requests.post(api(f"/g/s/user-profile/{userId}/member/{self.uid}"), headers=self.headers)
+        req = requests.post(api(f"/x{self.comId}/s/user-profile/{userId}/member/{self.uid}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
@@ -222,20 +235,20 @@ class Local:
         data = {"timestamp": int(timestamp() * 1000)}
 
         if isinstance(userId, str): url = api(f"/x{self.comId}/s/user-profile/{userId}/member")
-        if isinstance(userId, list):
+        elif isinstance(userId, list):
             url = api(f"/x{self.comId}/s/user-profile/{self.uid}/joined")
             data = json.dumps({"targetUidList": userId, "timestamp": int(timestamp() * 1000)})
         else: raise TypeError("Please put str or list of userId")
-            
-        req = requests.post(url, headers=headers.Headers(data=data).headers, data=data)
+
+        req = requests.post(url, headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def start_chat(self, userId: [str, list], title: str = None, message: str = None, content: str = None, type: int = 0):
         if isinstance(userId, list): userIds = userId
-        if isinstance(userId, str): userIds = [userId]
+        elif isinstance(userId, str): userIds = [userId]
         else: raise TypeError("Please put a str or list of userId")
-        
+
         data = json.dumps({
             "title": title,
             "inviteeUids": userIds,
@@ -245,7 +258,7 @@ class Local:
             "timestamp": int(timestamp() * 1000)
         })
 
-        req = requests.post(api(f"/x{self.comId}/s/chat/thread"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/chat/thread"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
@@ -256,27 +269,31 @@ class Local:
 
         data = json.dumps({"uids": userIds, "timestamp": int(timestamp() * 1000)})
 
-        req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/member/invite"), data=data, headers=headers.Headers(data=data).headers)
+        req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/member/invite"), data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
-    def edit_profile(self, nickname: str = None, content: str = None, icon: str = None):
+    def edit_profile(self, nickname: str = None, content: str = None, icon: BinaryIO = None, backgroundColor: str = None, backgroundImage: str = None, defaultBubbleId: str = None):
         data = {
+            "address": None,
             "latitude": 0,
             "longitude": 0,
+            "mediaList": None,
             "eventSource": "UserProfileView",
             "timestamp": int(timestamp() * 1000)
         }
 
         if nickname: data["nickname"] = nickname
+        if icon: data["icon"] = self.upload_media(icon, "image")
         if content: data["content"] = content
-        if icon: data["icon"] = icon
+        if backgroundColor: data["extensions"]["style"] = {"backgroundColor": backgroundColor}
+        if backgroundImage: data["extensions"]["style"] = {"backgroundMediaList": [[100, backgroundImage, None, None, None]]}
+        if defaultBubbleId: data["extensions"] = {"defaultBubbleId": defaultBubbleId}
 
         data = json.dumps(data)
-
-        req = requests.post(api(f"/x{self.comId}/s/user-profile/{self.uid}"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/user-profile/{self.uid}"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
-        return Json(req.json())
+        else: return Json(req.json())
 
     def edit_chat(self, chatId: str, title: str = None, content: str = None, icon: str = None, background: str = None, keywords: list = None, announcement: str = None, pinAnnouncement: bool = None):
         res, data = [], {"timestamp": int(timestamp() * 1000)}
@@ -285,236 +302,212 @@ class Local:
         if content: data["content"] = content
         if icon: data["icon"] = icon
         if keywords: data["keywords"] = keywords
-        if announcement: data["extensions"] = {"announcement": announcement}
-        if pinAnnouncement: data["extensions"] = {"pinAnnouncement": pinAnnouncement}
+        if announcement: data["extensions"]["announcement"] = announcement
+        if pinAnnouncement: data["extensions"]["pinAnnouncement"] = pinAnnouncement
         if background:
             data = json.dumps({"media": [100, background, None], "timestamp": int(timestamp() * 1000)})
-    
-            req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/member/{self.uid}/background"), data=data, headers=headers.Headers(data=data).headers)
+            req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/member/{self.uid}/background"), data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
             if req.status_code != 200: return CheckExceptions(req.json())
             res.append(Json(req.json()))
 
         data = json.dumps(data)
-        req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}"), data=data, headers=headers.Headers(data=data).headers)
+        req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}"), data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         res.append(Json(req.json()))
         return res
 
-    def chat_settings(self, chatId: str, viewOnly: bool = False, doNotDisturb: bool = True, canInvite: bool = False, canTip: bool = None, pin: bool = None):
+    def chat_settings(self, chatId: str, viewOnly: bool = False, doNotDisturb: bool = True, canInvite: bool = False, canTip: bool = None, pin: bool = None, coHosts: [str, list] = None):
         res = []
 
-        if doNotDisturb is not None:
+        if doNotDisturb:
             if doNotDisturb: opt = 2
-            if not doNotDisturb: opt = 1
-            else: raise TypeError("Do not disturb should be True or False")
-            
-            data = json.dumps({"alertOption": opt})
-            req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/member/{self.uid}/alert"), data=data, headers=self.headers)
+            else: opt = 1
+
+            data = json.dumps({"alertOption": opt, "timestamp": int(timestamp() * 1000)})
+            req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/member/{self.uid}/alert"), data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
             if req.status_code != 200: return CheckExceptions(req.json())
             res.append(Json(req.json()))
 
-        if viewOnly is not None:
+        if viewOnly:
             if viewOnly: viewOnly = "enable"
-            if not viewOnly: viewOnly = "disable"
-            else: raise TypeError("viewOnly should be True or False")
-            
-            req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/view-only/{viewOnly}"), headers=self.headers)
+            else: viewOnly = "disable"
+
+            req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/view-only/{viewOnly}"), headers=self.headers, proxies=self.proxies)
             if req.status_code != 200: return CheckExceptions(req.json())
             res.append(Json(req.json()))
 
-        if canInvite is not None:
+        if canInvite:
             if canInvite: canInvite = "enable"
-            if not canInvite: canInvite = "disable"
-            else: raise TypeError("can invite should be True or False")
-            
-            req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/members-can-invite/{canInvite}"), headers=self.headers)
+            else: canInvite = "disable"
+
+            req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/members-can-invite/{canInvite}"), headers=self.headers, proxies=self.proxies)
             if req.status_code != 200: return CheckExceptions(req.json())
             res.append(Json(req.json()))
 
-        if canTip is not None:
+        if canTip:
             if canTip: canTip = "enable"
-            if not canTip: canTip = "disable"
-            else: raise TypeError("can tip should be True or False")
-            
-            req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/tipping-perm-status/{canTip}"), headers=self.headers)
+            else: canTip = "disable"
+
+            req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/tipping-perm-status/{canTip}"), headers=self.headers, proxies=self.proxies)
             if req.status_code != 200: return CheckExceptions(req.json())
             res.append(Json(req.json()))
 
-        if pin is not None:
+        if pin:
             if pin: pin = "pin"
-            if not pin: pin = "unpin"
-            else: raise TypeError("pin should be True or False")
+            else: pin = "unpin"
 
-            req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/{pin}"), headers=self.headers)
+            req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/{pin}"), headers=self.headers, proxies=self.proxies)
+            if req.status_code != 200: return CheckExceptions(req.json())
+            res.append(Json(req.json()))
+
+        if coHosts:
+            data = json.dumps({"uidList": coHosts, "timestamp": int(timestamp() * 1000)})
+            req = requests.post(api(f"{self.comId}/s/chat/thread/{chatId}/co-host"), data=data, headers=headers.Headers(data=data).headers)
             if req.status_code != 200: return CheckExceptions(req.json())
             res.append(Json(req.json()))
 
         return res
 
-    def vote_comment(self, blogId: str, commentId: str, value: int = 1):
-        """
-        vote & unvote comment.
+    def vote_comment(self, blogId: str, commentId: str, value: bool = True):
+        if value: value = 1
+        else: value = -1
 
-          **Parameters**
-              - **blogId** : Id of the blog.
-              - **commentId** : Comment id.
-              - **value** : 1 for upvote -1 for downvote.
-
-          **Returns**
-              - **Success** : :meth:`Json Object <samino.lib.objects.Json>`
-
-              - **Fail** : :meth:`Exceptions <samino.lib.exceptions>`
-        """
-        if value != 1: pass
-        elif value != -1: raise TypeError(f"Please fill the value by (-1 or 1) not ({value})")
         data = json.dumps({"value": value, "timestamp": int(timestamp() * 1000)})
-
-        req = requests.post(api(f"/x{self.comId}/s/blog/{blogId}/comment/{commentId}/vote?cv=1.2&value=1"), data=data, headers=headers.Headers(data=data).headers)
+        req = requests.post(api(f"/x{self.comId}/s/blog/{blogId}/comment/{commentId}/vote?cv=1.2&value=1"), data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def like_blog(self, blogId: str = None, wikiId: str = None):
         data = json.dumps({"value": 4, "timestamp": int(timestamp() * 1000)})
-        
+
         if blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/vote?cv=1.2&value=4")
-        if wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/vote?cv=1.2&value=4")
+        elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/vote?cv=1.2&value=4")
         else: raise TypeError("Please put wiki or blog Id")
 
-        req = requests.post(url, headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(url, headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def unlike_blog(self, blogId: str = None, wikiId: str = None):
         if blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/vote?eventSource=FeedList")
-        if wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/vote?eventSource=FeedList")
+        elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/vote?eventSource=FeedList")
         else: raise TypeError("Please put wikiId or blogId")
-        
-        req = requests.delete(url, headers=self.headers)
+
+        req = requests.delete(url, headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def change_titles(self, userId: str, titles: list, colors: list):
         t = []
         for title, color in zip(titles, colors): t.append({"title": title, "color": color})
-        data = json.dumps({
-            "adminOpName": 207,
-            "adminOpValue": {"titles": t},
-            "timestamp": int(timestamp() * 1000)
-        })
-
-        req = requests.post(api(f"/x{self.comId}/s/user-profile/{userId}/admin"), headers=headers.Headers(data=data).headers, data=data)
+        data = json.dumps({"adminOpName": 207, "adminOpValue": {"titles": t}, "timestamp": int(timestamp() * 1000)})
+        req = requests.post(api(f"/x{self.comId}/s/user-profile/{userId}/admin"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def like_comment(self, commentId: str, blogId: str = None, wikiId: str = None, userId: str = None):
         data = json.dumps({"value": 1})
         if blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/comment/{commentId}/vote?cv=1.2&value=1")
-        if wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/comment/{commentId}/vote?cv=1.2&value=1")
-        if userId: url = api(f"/x{self.comId}/s/user-profile/{userId}/comment/{commentId}/vote?cv=1.2&value=1")
+        elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/comment/{commentId}/vote?cv=1.2&value=1")
+        elif userId: url = api(f"/x{self.comId}/s/user-profile/{userId}/comment/{commentId}/vote?cv=1.2&value=1")
         else: raise TypeError("Please put a wiki or user or blog Id")
-        
+
         req = requests.post(url, data=data, headers=headers)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def unlike_comment(self, commentId: str, blogId: str = None, wikiId: str = None, userId: str = None):
         if blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/comment/{commentId}/g-vote?eventSource=PostDetailView")
-        if wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/comment/{commentId}/g-vote?eventSource=PostDetailView")
-        if userId: url = api(f"/x{self.comId}/s/user-profile/{userId}/comment/{commentId}/g-vote?eventSource=UserProfileView")
-        else:raise TypeError("Please put a wiki or user or blog Id")
-        
+        elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/comment/{commentId}/g-vote?eventSource=PostDetailView")
+        elif userId: url = api(f"/x{self.comId}/s/user-profile/{userId}/comment/{commentId}/g-vote?eventSource=UserProfileView")
+        else: raise TypeError("Please put a wiki or user or blog Id")
+
         req = requests.delete(url, headers=headers)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def comment(self, comment: str, userId: str = None, blogId: str = None, wikiId: str = None, replyTo: str = None, isGuest: bool = False):
         data = {"content": comment, "timestamp": int(timestamp() * 1000)}
+
         if replyTo: data["respondTo"] = replyTo
         if isGuest: comType = "g-comment"
         else: comType = "comment"
         if userId: url = api(f"/x{self.comId}/s/user-profile/{userId}/{comType}")
-        if blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/{comType}")
-        if wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/{comType}")
-        else:raise TypeError("Please put a wiki or user or blog Id")
-        
+        elif blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/{comType}")
+        elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/{comType}")
+        else: raise TypeError("Please put a wiki or user or blog Id")
+
         data = json.dumps(data)
-        req = requests.post(url, data=data, headers=headers.Headers(data=data).headers)
+        req = requests.post(url, data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def delete_comment(self, commentId: str, userId: str = None, blogId: str = None, wikiId: str = None):
         if userId: url = api(f"/x{self.comId}/s/user-profile/{userId}/comment/{commentId}")
-        if blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/comment/{commentId}")
-        if wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/comment/{commentId}")
+        elif blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/comment/{commentId}")
+        elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/comment/{commentId}")
         else: raise TypeError(" ")
-        req = requests.delete(url, headers=self.headers)
+
+        req = requests.delete(url, headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def vote_poll(self, blogId: str, optionId: str):
         data = json.dumps({"value": 1, "timestamp": int(timestamp() * 1000)})
-
-        req = requests.post(api(f"/x{self.comId}/s/blog/{blogId}/poll/option/{optionId}/vote"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/blog/{blogId}/poll/option/{optionId}/vote"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def get_blog_info(self, blogId: str = None, wikiId: str = None):
         if blogId: url = api(f"/x{self.comId}/s/blog/{blogId}")
-        if wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}")
+        elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}")
         else: raise TypeError("Please put a wiki or blog Id")
-        
-        req = requests.get(url, headers=self.headers)
+
+        req = requests.get(url, headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        return BlogInfo(req.json()["blog"])
+        return Blog(req.json()["blog"]).Blog
 
     def get_blogs(self, start: int = 0, size: int = 25):
-        req = requests.get(api(f"/x{self.comId}/s/feed/featured?start={start}&size={size}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/feed/featured?start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        return BlogList(req.json()["featuredList"])
+        return BlogList(req.json()["featuredList"]).BlogList
 
     def get_blogs_more(self, start: int = 0, size: int = 25):
-        req = requests.get(api(f"/x{self.comId}/s/feed/featured-more?start={start}&size={size}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/feed/featured-more?start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        return BlogList(req.json()["blogList"])
+        return BlogList(req.json()["blogList"]).BlogList
 
     def get_blogs_all(self, start: int = 0, size: int = 25, pagingType: str = "t"):
-        req = requests.get(api(f"/x{self.comId}/s/feed/blog-all?pagingType={pagingType}&start={start}&size={size}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/feed/blog-all?pagingType={pagingType}&start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        else: return BlogListAll(req.json()["blogList"])
+        else: return RecentBlogs(req.json()["blogList"]).RecentBlogs
 
-    def tip_coins(self, coins: int, chatId: str = None, blogId: str = None, wikiId: str = None, transactionId: str = str(UUID(hexlify(os.urandom(16)).decode("ascii")))):
-        data = {
-            "coins": int(coins),
-            "tippingContext": {
-                "transactionId": transactionId
-            },
-            "timestamp": int(timestamp() * 1000)
-        }
-        
+    def tip_coins(self, coins: int, chatId: str = None, blogId: str = None, wikiId: str = None, transactionId: str = None):
+        if transactionId is None: transactionId = str(UUID(hexlify(os.urandom(16)).decode("ascii")))
+        data = {"coins": int(coins), "tippingContext": {"transactionId": transactionId}, "timestamp": int(timestamp() * 1000)}
+
         if chatId: url = api(f"/x{self.comId}/s/chat/thread/{chatId}/tipping")
-        if blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/tipping")
-        if wikiId:
+        elif blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/tipping")
+        elif wikiId:
             url = api(f"/x{self.comId}/s/tipping")
             data["objectType"] = 2
             data["objectId"] = wikiId
         else: raise TypeError("Please put a wiki or chat or blog Id")
-            
+
         data = json.dumps(data)
-        req = requests.post(url, headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(url, headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return Json(req.json())
 
     def check_in(self, timezone: int = 180):
         data = json.dumps({"timezone": timezone, "timestamp": int(timestamp() * 1000)})
-
-        req = requests.post(api(f"/x{self.comId}/s/check-in"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/check-in"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return Json(req.json())
 
     def check_in_lottery(self, timezone: int = 180):
         data = json.dumps({"timezone": timezone, "timestamp": int(timestamp() * 1000)})
-
-        req = requests.post(api(f"/x{self.comId}/s/check-in/lottery"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/check-in/lottery"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return Json(req.json())
 
@@ -522,18 +515,14 @@ class Local:
         data = {"adminOpName": 102, "timestamp": int(timestamp() * 1000)}
         if asStaff and reason: data["adminOpNote"] = {"content": reason}
         data = json.dumps(data)
-
-
-        if asStaff: req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/message/{messageId}/admin"), data=data, headers=headers.Headers(data=data).headers)
-        else: req = requests.delete(api(f"/x{self.comId}/s/chat/thread/{chatId}/message/{messageId}"), headers=self.headers)
-
+        if asStaff: req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/message/{messageId}/admin"), data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
+        else: req = requests.delete(api(f"/x{self.comId}/s/chat/thread/{chatId}/message/{messageId}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return Json(req.json())
 
     def invite_by_host(self, chatId: str, userId: [str, list]):
         data = json.dumps({"uidList": userId, "timestamp": int(timestamp() * 1000)})
-
-        req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/avchat-members"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/avchat-members"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return Json(req.json())
 
@@ -542,10 +531,7 @@ class Local:
             "uid": userId,
             "title": title,
             "content": reason,
-            "attachedObject": {
-                "objectId": userId,
-                "objectType": 0
-            },
+            "attachedObject": {"objectId": userId, "objectType": 0},
             "penaltyType": 1,
             "penaltyValue": time,
             "adminOpNote": {},
@@ -553,7 +539,7 @@ class Local:
             "timestamp": int(timestamp() * 1000)
         })
 
-        req = requests.post(api(f"/x{self.comId}/s/notice"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/notice"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
@@ -566,7 +552,7 @@ class Local:
             "timestamp": int(timestamp() * 1000)
         })
 
-        req = requests.post(api(f"/x{self.comId}/s/user-profile/{userId}/ban"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/user-profile/{userId}/ban"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
@@ -576,44 +562,35 @@ class Local:
             "timestamp": int(timestamp() * 1000)
         })
 
-        req = requests.post(api(f"/x{self.comId}/s/user-profile/{userId}/unban"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/user-profile/{userId}/unban"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def hide(self, note: str = None, blogId: str = None, userId: str = None, wikiId: str = None, chatId: str = None):
-        opN = 110
-        opV = 9
-
+        opN, opV = 110, 9
         if userId:
             opN = 18
             opV = None
             url = api(f"/x{self.comId}/s/user-profile/{userId}/admin")
-        if blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/admin")
-        if wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/admin")
-        if chatId: url = api(f"/x{self.comId}/s/chat/thread/{chatId}/admin")
+        elif blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/admin")
+        elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/admin")
+        elif chatId: url = api(f"/x{self.comId}/s/chat/thread/{chatId}/admin")
         else: raise TypeError("Please put a wiki or user or chat or blog Id")
 
-        data = {
-            "adminOpNote": {"content": note},
-            "adminOpName": opN,
-            "adminOpValue": opV,
-            "timestamp": int(timestamp() * 1000)
-        }
-
-        req = requests.post(url, headers=headers.Headers(data=data).headers, data=data)
+        data = {"adminOpNote": {"content": note}, "adminOpName": opN, "adminOpValue": opV, "timestamp": int(timestamp() * 1000)}
+        req = requests.post(url, headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def unhide(self, note: str = None, blogId: str = None, userId: str = None, wikiId: str = None, chatId: str = None):
-        opN = 110
-        opV = 0
+        opN, opV = 110, 0
 
         if userId:
             opN = 19
             url = api(f"/x{self.comId}/s/user-profile/{userId}/admin")
-        if blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/admin")
-        if wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/admin")
-        if chatId: url = api(f"/x{self.comId}/s/chat/thread/{chatId}/admin")
+        elif blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/admin")
+        elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/admin")
+        elif chatId: url = api(f"/x{self.comId}/s/chat/thread/{chatId}/admin")
         else: raise TypeError("Please put a wiki or user or chat or blog Id")
 
         data = {
@@ -623,7 +600,7 @@ class Local:
             "timestamp": int(timestamp() * 1000)
         }
 
-        req = requests.post(url, headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(url, headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
@@ -632,31 +609,26 @@ class Local:
             "uid": userId,
             "title": "Custom",
             "content": reason,
-            "attachedObject": {
-                "objectId": userId,
-                "objectType": 0
-            },
+            "attachedObject": {"objectId": userId,"objectType": 0},
             "penaltyType": 0,
             "adminOpNote": {},
             "noticeType": 7,
             "timestamp": int(timestamp() * 1000)
         })
 
-        req = requests.post(api(f"/x{self.comId}/s/notice"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/notice"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def invite_to_voice_chat(self, userId: str = None, chatId: str = None):
         data = json.dumps({"uid": userId, "timestamp": int(timestamp() * 1000)})
-        req = requests.post(api(f"/g/x{self.comId}/chat/thread/{chatId}/vvchat-presenter/invite"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/g/x{self.comId}/chat/thread/{chatId}/vvchat-presenter/invite"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def post_blog(self, title: str, content: str, fansOnly: bool = False):
         data = {
-            "extensions": {
-                "fansOnly": fansOnly
-            },
+            "extensions": {"fansOnly": fansOnly},
             "content": content,
             "latitude": 0,
             "longitude": 0,
@@ -668,22 +640,15 @@ class Local:
         }
         data = json.dumps(data)
 
-        req = requests.post(api(f"/x{self.comId}/s/blog"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/blog"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
-    def post_wiki(self, title: str, content: str, fansOnly: bool = False, icon: str = None,
-                  backgroundColor: str = None):
+    def post_wiki(self, title: str, content: str, fansOnly: bool = False, icon: str = None, backgroundColor: str = None, keywords: [str, list] = None):
         data = {
-            "extensions": {
-                "fansOnly": fansOnly,
-                "props": [],
-                "style": {
-                    "backgroundColor": backgroundColor
-                }
-            },
-            "content": "",
-            "keywords": content,
+            "extensions": {"fansOnly": fansOnly, "props": [], "style": {"backgroundColor": backgroundColor}},
+            "content": content,
+            "keywords": keywords,
             "label": title,
             "latitude": 0,
             "longitude": 0,
@@ -691,34 +656,30 @@ class Local:
             "timestamp": int(timestamp() * 1000)
         }
         if icon: data["icon"] = icon
-        data = json.dumps(data)
 
-        req = requests.post(api(f"/x{self.comId}/s/item"), headers=headers.Headers(data=data).headers, data=data)
+        data = json.dumps(data)
+        req = requests.post(api(f"/x{self.comId}/s/item"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def delete_blog(self, blogId: str):
-        req = requests.delete(api(f"/x{self.comId}/s/blog/{blogId}"), headers=self.headers)
+        req = requests.delete(api(f"/x{self.comId}/s/blog/{blogId}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def delete_wiki(self, wikiId: str):
-        req = requests.delete(api(f"/x{self.comId}/s/item/{wikiId}"), headers=self.headers)
+        req = requests.delete(api(f"/x{self.comId}/s/item/{wikiId}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def activate_status(self, status: int = 1):
-        data = json.dumps({
-            "onlineStatus": status,
-            "duration": 86400,
-            "timestamp": int(timestamp() * 1000)
-        })
-
-        req = requests.post(api(f"/x{self.comId}/s/user-profile/{self.uid}/online-status"), data=data, headers=headers.Headers(data=data).headers)
+        data = json.dumps({"onlineStatus": status,"duration": 86400,"timestamp": int(timestamp() * 1000)})
+        req = requests.post(api(f"/x{self.comId}/s/user-profile/{self.uid}/online-status"), data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
-    def subscribe(self, userId: str, autoRenew: str = False, transactionId: str = str(UUID(hexlify(os.urandom(16)).decode("ascii")))):
+    def subscribe(self, userId: str, autoRenew: str = False, transactionId: str = None):
+        if transactionId is None: transactionId = str(UUID(hexlify(os.urandom(16)).decode("ascii")))
         data = json.dumps({
             "paymentContext": {
                 "transactionId": transactionId,
@@ -727,7 +688,7 @@ class Local:
             "timestamp": int(timestamp() * 1000)
         })
 
-        req = requests.post(api(f"/x{self.comId}/s/influencer/{userId}/subscribe"), data=data, headers=headers.Headers(data=data).headers)
+        req = requests.post(api(f"/x{self.comId}/s/influencer/{userId}/subscribe"), data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
@@ -738,8 +699,7 @@ class Local:
             "timestamp": int(timestamp() * 1000)
         }
         data = json.dumps(data)
-
-        req = requests.post(api(f"/x{self.comId}/s/knowledge-base-request"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/knowledge-base-request"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return Json(req.json())
 
@@ -750,59 +710,54 @@ class Local:
             "timestamp": int(timestamp() * 1000)
         }
 
-        if fansOnly: data["extensions"] = {"fansOnly": True}
+        if fansOnly: data["extensions"]["fansOnly"] = True
         if backgroundColor: data["extensions"] = {"backgroundColor": backgroundColor}
         if blogId: url = api(f"/x{self.comId}/s/blog/{blogId}")
-        if wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}")
+        elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}")
         else: raise TypeError("Please put blogId or wikiId")
 
         data = json.dumps(data)
-        req = requests.post(url, headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(url, headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def get_chat_bubbles(self, start: int = 0, size: int = 20):
-        req = requests.get(api(f"/x{self.comId}/s/chat/chat-bubble?type=all-my-bubbles&start={start}&size={size}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/chat/chat-bubble?type=all-my-bubbles&start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        return BubbleList(req.json()["chatBubbleList"])
+        return BubbleList(req.json()["chatBubbleList"]).BubbleList
 
     def select_bubble(self, bubbleId: str, apply: int = 0, chatId: str = None):
-        data = {
-            "bubbleId": bubbleId,
-            "applyToAll": apply,
-            "timestamp": int(timestamp() * 1000)
-        }
-
+        data = {"bubbleId": bubbleId, "applyToAll": apply, "timestamp": int(timestamp() * 1000)}
         if chatId: data["threadId"] = chatId
-
         data = json.dumps(data)
-        req = requests.post(api(f"/x{self.comId}/s/chat/thread/apply-bubble"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/chat/thread/apply-bubble"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
-        else:return Json(req.json())
+        else: return Json(req.json())
 
     def delete_chat_bubble(self, bubbleId: str):
-        req = requests.delete(url=api(f"/x{self.comId}/s/chat/chat-bubble/{bubbleId}"), headers=self.headers)
+        req = requests.delete(url=api(f"/x{self.comId}/s/chat/chat-bubble/{bubbleId}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return Json(req.json())
 
     def get_chat_bubble_templates(self, start: int = 0, size: int = 25):
-        req = requests.get(api(f"/x{self.comId}/s/chat/chat-bubble/templates?start={start}&size={size}"), headers=self.headers)
+        req = requests.get(api(f"/x{self.comId}/s/chat/chat-bubble/templates?start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return BubbleTemplates(req.json()["templateList"])
 
     def upload_custom_bubble(self, templateId: str, bubble: BinaryIO):
-        req = requests.post(api(f"/x{self.comId}/s/chat/chat-bubble/templates/{templateId}/generate"), headers=self.headers, data=bubble)
+        req = requests.post(api(f"/x{self.comId}/s/chat/chat-bubble/templates/{templateId}/generate"), headers=self.headers, proxies=self.proxies, data=bubble)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return Json(req.json())
 
-    def kick(self, chatId: str, userId: str, allowRejoin: bool = True):
-        if not allowRejoin: allowRejoin = 1
-        if allowRejoin: allowRejoin = 0
-        req = requests.delete(api(f"/x{self.comId}/s/chat/thread/{chatId}/member/{userId}?allowRejoin={allowRejoin}"), headers=self.headers)
+    def kick(self, chatId: str, userId: str, rejoin: bool = True):
+        if rejoin: rejoin = 1
+        if not rejoin: rejoin = 0
+
+        req = requests.delete(api(f"/x{self.comId}/s/chat/thread/{chatId}/member/{userId}?allowRejoin={rejoin}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return Json(req.json())
 
-    def user_active_time(self):
+    def web_active_time(self):
         try:
             data = {"ndcId": self.comId}
             req = requests.post("https://aminoapps.com/api/community/stats/web-user-active-time", json=data, headers=self.web_headers)
@@ -811,16 +766,16 @@ class Local:
                 else: Json(req.json())
             except: return CheckExceptions(req.json())
             return Json(req.json())
-        except: raise Except("Unknown error")
+        except: raise Exception("Unknown error")
 
-    def send_active_obj(self, startTime: int = None, endTime: int = None, optInAdsFlags: int = 2147483647, tz: int = -timezone // 1000, timers: list = None, timestamp: int = int(timestamp() * 1000)):
+    def block(self, userId: str):
+        req = requests.post(api(f"/x{self.comId}/s/block/{userId}"), headers=self.headers, proxies=self.proxies)
+        if "OK" not in req.json()["api:message"]: return CheckExceptions(req.json())
+        return Json(req.json())
+
+    def send_active_time(self, startTime: int = None, endTime: int = None, optInAdsFlags: int = 2147483647, tz: int = -timezone // 1000, timers: list = None, timestamp: int = int(timestamp() * 1000)):
         data = {
-            "userActiveTimeChunkList": [
-                {
-                    "start": startTime,
-                    "end": endTime
-                }
-            ],
+            "userActiveTimeChunkList": [{"start": startTime, "end": endTime}],
             "timestamp": timestamp,
             "optInAdsFlags": optInAdsFlags,
             "timezone": tz
@@ -828,6 +783,22 @@ class Local:
         if timers: data["userActiveTimeChunkList"] = timers
 
         data = json_minify(json.dumps(data))
-        req = requests.post(api(f"/x{self.comId}/s/community/stats/user-active-time"), headers=headers.Headers(data=data).headers, data=data)
+        req = requests.post(api(f"/x{self.comId}/s/community/stats/user-active-time"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
-        else: return req.status_code
+        else: return Json(req.json())
+
+    def transfer_host(self, chatId: str, userIds: list):
+        data = json.dumps({
+            "uidList": userIds,
+            "timestamp": int(timestamp() * 1000)
+        })
+
+        req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/transfer-organizer"), headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if req.status_code != 200: return CheckExceptions(req.json())
+        else: return Json(req.json())
+
+    def accept_host(self, chatId: str, requestId: str):
+        data = json.dumps({})
+        req = requests.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/transfer-organizer/{requestId}/accept"), headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if req.status_code != 200: return CheckExceptions(req.json())
+        else: return Json(req.json())
