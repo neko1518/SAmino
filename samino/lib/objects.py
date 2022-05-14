@@ -3375,6 +3375,25 @@ class SharedFolderFileList:
 
         return self
 
+class Payload:
+    def __init__(self, data):
+        self.json = data
+
+        self.ndcId = None
+        self.chatId = None
+        self.alert = None
+
+    @property
+    def Payload(self):
+        try: self.ndcId = self.json["ndcId"]
+        except (KeyError, TypeError): pass
+        try: self.ndcId = self.json["tid"]
+        except (KeyError, TypeError): pass
+        try: self.alert = self.json["aps"]["alert"]
+        except (KeyError, TypeError): pass
+
+        return self
+
 class Event:
     def __init__(self, data):
         self.json = data
