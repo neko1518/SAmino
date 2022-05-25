@@ -1479,43 +1479,6 @@ class VisitorsList:
 
         return self
 
-class Comment:
-    def __init__(self, data):
-        self.json = data['comment']
-        self.owner = None
-        self.time = None
-        self.commentId = None
-        self.contnet = None
-        self.SubCommentsCount = None
-        self.SubComments = []
-        self.comId = None
-        self.author = None
-        self.uid = None
-
-    @property
-    def Comments(self):
-        self.owner = self.json['author']
-        self.time = self.json['modifiedTime']
-        self.commentId = self.json['commentId']
-        self.contnet = self.json['content']
-        self.SubCommentsCount = self.json['subcommentsCount']
-        self.comId = self.json['ndcId']
-        self.author = self.owner['nickname']
-        self.uid = self.owner['uid']
-
-        try:
-            for x in self.json['subcommentsPreview']:
-                try: self.SubComments.append(x['author']['nickname'])
-                except (KeyError, TypeError): self.SubComments.append(None)
-                try: self.SubComments.append(x['author']['uid'])
-                except (KeyError, TypeError): self.SubComments.append(None)
-                try: self.SubComments.append(x['commentId'])
-                except (KeyError, TypeError): self.SubComments.append(None)
-                try: self.SubComments.append(x['content'])
-                except (KeyError, TypeError): self.SubComments.append(None)
-        except: pass
-        return self
-
 class CommentList:
     def __init__(self, data):
         _author = []

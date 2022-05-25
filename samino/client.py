@@ -1,25 +1,25 @@
-import base64
+import os
 import requests
-import threading
+import ujson as json
 from uuid import UUID
-from .sockets import Wss
 from typing import BinaryIO
 from binascii import hexlify
 from time import time as timestamp
 
 from .lib import *
+from .sockets import Wss
 from .lib.objects import *
 from .lib import CheckExceptions
 
 
 class Client(Wss):
-    def __init__(self, deviceId: str = None, proxies: dict = None, Trace: bool = False):
-        self.Trace = Trace
+    def __init__(self, deviceId: str = None, proxies: dict = None, trace: bool = False):
+        self.trace = trace
         self.proxies = proxies
         self.uid = None
 
         headers.deviceId = deviceId
-        Wss.__init__(self, self, trace=self.Trace)
+        Wss.__init__(self, self, trace=self.trace)
         self.deviceId = headers.Headers().deviceId
         self.headers = headers.Headers().headers
         self.session = requests.Session()
@@ -29,21 +29,20 @@ class Client(Wss):
         self.headers = headers.Headers().headers
 
     def sid_login(self, sid: str):
-        if "sid=" not in sid:headers.sid = f"sid={sid}"
-        else:headers.sid = sid
+        if "sid=" not in sid: headers.sid = f"sid={sid}"
+        else: headers.sid = sid
+        self.headers = headers.Headers().headers
 
         req = self.session.get(api(f"/g/s/account"), headers=self.headers, proxies=self.proxies)
         info = Account(req.json()["account"])
 
         headers.uid = info.userId
         self.uid = info.userId
-        self.sid = sid
+        self.sid = headers.sid
         self.launch()
 
-        if req.status_code != 200:
-            return info
-        else:
-            return CheckExceptions(req.json())
+        if req.status_code != 200: return CheckExceptions(req.json())
+        else: return info
 
     def login(self, email: str, password: str):
         data = json.dumps({
@@ -77,7 +76,7 @@ class Client(Wss):
             "timestamp": int(timestamp() * 1000)
         })
 
-        req = self.session.post(api("/g/s/auth/logout"), headers=headers.Headers(data=data).headers, data=data,proxies=self.proxies)
+        req = self.session.post(api("/g/s/auth/logout"), headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
         if req.status_code != 200:
             return CheckExceptions(req.json())
         else:
@@ -89,9 +88,8 @@ class Client(Wss):
             return Json(req.json())
 
     def check_device(self, deviceId: str):
-        head = self.headers
-        head["NDCDEVICEID"] = deviceId
-        req = self.session.post(api(f"/g/s/device"), headers=head)
+        self.headers["NDCDEVICEID"] = deviceId
+        req = self.session.post(api(f"/g/s/device"), headers=self.headers)
         if req.json()["api:statuscode"] != 0: return CheckExceptions(req.json())
         return Json(req.json())
 
@@ -278,8 +276,11 @@ class Client(Wss):
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
-    def join_community(self, comId: str):
-        req = self.session.post(api(f"/x{comId}/s/community/join"), headers=self.headers, proxies=self.proxies)
+    def join_community(self, comId: str, InviteId:str = None):
+        data = {"timestamp": int(timestamp() * 1000)}
+        if InviteId: data["invitationId"] = InviteId
+        data = json.dumps(data)
+        req = self.session.post(api(f"/x{comId}/s/community/join?{self.sid}"), data=data,headers=headers.Headers(data=data).headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
@@ -294,8 +295,7 @@ class Client(Wss):
             req = self.session.post(api(f"/g/s/user-profile/{userId}/member"), headers=self.headers, proxies=self.proxies)
         elif type(userId) is list:
             data = json.dumps({"targetUidList": userId, "timestamp": int(timestamp() * 1000)})
-            req = self.session.post(api(f"/g/s/user-profile/{self.uid}/joined"),
-                                headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
+            req = self.session.post(api(f"/g/s/user-profile/{self.uid}/joined"),headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         else:
             raise TypeError("Please put a str or list of userId")
 
@@ -626,19 +626,14 @@ class Client(Wss):
         return WalletInfo(req.json()["wallet"]).WalletInfo
 
     def get_all_users(self, type: str = "recent", start: int = 0, size: int = 25):
-        if type == "recent":
-            type = "recent"
-        elif type == "banned":
-            type = "banned"
-        elif type == "featured":
-            type = "featured"
-        elif type == "leaders":
-            type = "leaders"
-        elif type == "curators":
-            type = "curators"
-        else:
-            type = "recent"
-
+        """
+        Types:
+        - recent
+        - banned
+        - featured
+        - leaders
+        - curators
+        """
         req = self.session.get(api(f"/g/s/user-profile?type={type}&start={start}&size={size}"), headers=self.headers,
                            proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
@@ -651,19 +646,6 @@ class Client(Wss):
         return UserProfileList(req.json()["memberList"]).UserProfileList
 
     def get_from_id(self, id: str, comId: str = None, objectType: int = 2):  # never tried
-        """
-        Get Link from Id.
-
-        **Parameters**
-            - **comId** : Id of the community.
-            - **objectType** : Object type of the id.
-            - **id** : The id.
-
-        **Returns**
-            - **Success** : :meth:`Json Object <samino.lib.objects.Json>`
-
-            - **Fail** : :meth:`Exceptions <samino.lib.exceptions>`
-        """
         data = json.dumps({
             "objectId": id,
             "targetCode": 1,
@@ -751,24 +733,18 @@ class Client(Wss):
     def like_comment(self, commentId: str, userId: str = None, blogId: str = None):
         data = json.dumps({"value": 4, "timestamp": int(timestamp() * 1000)})
 
-        if userId:
-            url = api(f"/g/s/user-profile/{userId}/comment/{commentId}/g-vote?cv=1.2&value=1")
-        elif blogId:
-            url = api(f"/g/s/blog/{blogId}/comment/{commentId}/g-vote?cv=1.2&value=1")
-        else:
-            raise TypeError("Please put blogId or wikiId")
+        if userId: url = api(f"/g/s/user-profile/{userId}/comment/{commentId}/g-vote?cv=1.2&value=1")
+        elif blogId: url = api(f"/g/s/blog/{blogId}/comment/{commentId}/g-vote?cv=1.2&value=1")
+        else: raise TypeError("Please put blogId or wikiId")
 
         req = self.session.post(url, data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
     def unlike_comment(self, commentId: str, blogId: str = None, userId: str = None):
-        if userId:
-            url = api(f"/g/s/user-profile/{userId}/comment/{commentId}/g-vote?eventSource=UserProfileView")
-        elif blogId:
-            url = api(f"/g/s/blog/{blogId}/comment/{commentId}/g-vote?eventSource=PostDetailView")
-        else:
-            raise TypeError("Please put blog or user Id")
+        if userId: url = api(f"/g/s/user-profile/{userId}/comment/{commentId}/g-vote?eventSource=UserProfileView")
+        elif blogId: url = api(f"/g/s/blog/{blogId}/comment/{commentId}/g-vote?eventSource=PostDetailView")
+        else: raise TypeError("Please put blog or user Id")
 
         req = self.session.delete(url, headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
@@ -792,16 +768,23 @@ class Client(Wss):
             "timestamp": int(timestamp() * 1000)
         })
 
-        req = self.session.post(api(f"/g/s/auth/register"), data=data, headers=headers.Headers(data=data).headers,
-                            proxies=self.proxies)
+        req = self.session.post(api(f"/g/s/auth/register"), data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
-    def watch_ad(self, uid: str = None):
-        data = headers.AdHeaders(uid if uid else self.uid).data
-        req = self.session.post(tapjoy, json=data, headers=headers.AdHeaders().headers, proxies=self.proxies)
-        print(req.status_code)
-        if req.status_code != 204:
-            return CheckExceptions(req.status_code)
-        else:
-            return Json(req.text)
+    def remove_host(self, chatId: str, userId: str):
+        req = requests.Session().delete(api(f"/g/s/chat/thread/{chatId}/co-host/{userId}"), headers=headers)
+        if req.status_code != 200: return CheckExceptions(req.json())
+        return Json(req.json())
+
+    def edit_comment(self, commentId: str, comment: str, userId: str):
+        data = {"content": comment, "timestamp": int(timestamp() * 1000)}
+        data = json.dumps(data)
+        req = self.session.post(api(f"/g/s/user-profile/{userId}/comment/{commentId}"), data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
+        if req.status_code != 200: return CheckExceptions(req.json())
+        return Comment(req.json()).Comments
+
+    def get_comment_info(self, commentId: str, userId: str):
+        req = self.session.get(api(f"/g/s/user-profile/{userId}/comment/{commentId}"), headers=self.headers, proxies=self.proxies)
+        if req.status_code != 200: return CheckExceptions(req.json())
+        return Comment(req.json()).Comments

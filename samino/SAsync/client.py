@@ -1,6 +1,8 @@
+import os
 import base64
 import aiohttp
 import asyncio
+import ujson as json
 from uuid import UUID
 from .sockets import Wss
 from typing import BinaryIO
@@ -55,7 +57,7 @@ class SClient(Wss):
             self.sid = sid
             await self.Start()
             if req.status != 200:return CheckExceptions(await req.json())
-            else:return await req.json()
+            else:return info
 
     async def login(self, email: str, password: str):
         data = json.dumps({
@@ -273,8 +275,11 @@ class SClient(Wss):
             if req.status != 200: return CheckExceptions(await req.json())
             return Json((await req.json()))
 
-    async def join_community(self, comId: str):
-        async with self.session.post(api(f"/x{comId}/s/community/join"), headers=self.headers ) as req:
+    async def join_community(self, comId: str, InviteId: str = None):
+        data = {"timestamp": int(timestamp() * 1000)}
+        if InviteId: data["invitationId"] = InviteId
+        data = json.dumps(data)
+        async with self.session.post(api(f"/x{comId}/s/community/join?{self.sid}"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json((await req.json()))
 
@@ -295,8 +300,6 @@ class SClient(Wss):
                 return Json((await req.json()))
         else:
             raise TypeError("Please put a str or list of userId")
-
-
 
     async def get_member_following(self, userId: str, start: int = 0, size: int = 25):
         async with self.session.get(api(f"/g/s/user-profile/{userId}/joined?start={start}&size={size}"), headers=self.headers ) as req:
@@ -320,7 +323,7 @@ class SClient(Wss):
 
     async def get_blocked_users(self, start: int = 0, size: int = 25):
         async with self.session.get(api(f"/g/s/block/full-list?start={start}&size={size}"), headers=self.headers,
-                           proxies=self.proxies) as req:
+                           ) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return (await req.json())["blockedUidList"]
 
@@ -442,7 +445,7 @@ class SClient(Wss):
 
     async def get_message_info(self, messageId: str, chatId: str):
         async with self.session.get(api(f"/g/s/chat/thread/{chatId}/message/{messageId}"), headers=self.headers,
-                           proxies=self.proxies) as req:
+                           ) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Message((await req.json())["message"]).Message
 
@@ -603,19 +606,6 @@ class SClient(Wss):
             return WalletInfo((await req.json())["wallet"]).WalletInfo
 
     async def get_all_users(self, type: str = "recent", start: int = 0, size: int = 25):
-        if type == "recent":
-            type = "recent"
-        elif type == "banned":
-            type = "banned"
-        elif type == "featured":
-            type = "featured"
-        elif type == "leaders":
-            type = "leaders"
-        elif type == "curators":
-            type = "curators"
-        else:
-            type = "recent"
-
         async with self.session.get(api(f"/g/s/user-profile?type={type}&start={start}&size={size}"), headers=self.headers ) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return UserProfileList((await req.json())["userProfileList"]).UserProfileList
@@ -626,19 +616,6 @@ class SClient(Wss):
             return UserProfileList((await req.json())["memberList"]).UserProfileList
 
     async def get_from_id(self, id: str, comId: str = None, objectType: int = 2):  # never tried
-        """
-        Get Link from Id.
-
-        **Parameters**
-            - **comId** : Id of the community.
-            - **objectType** : Object type of the id.
-            - **id** : The id.
-
-        **Returns**
-            - **Success** : :meth:`Json Object <samino.lib.objects.Json>`
-
-            - **Fail** : :meth:`Exceptions <samino.lib.exceptions>`
-        """
         data = json.dumps({
             "objectId": id,
             "targetCode": 1,
@@ -646,12 +623,9 @@ class SClient(Wss):
             "timestamp": int(timestamp() * 1000)
         })
 
-        if comId is None:
-            url = api(f"/g/s/link-resolution")
-        elif comId is not None:
-            url = api(f"/g/s-x{comId}/link-resolution")
-        else:
-            raise TypeError("please put a comId")
+        if comId is None:url = api(f"/g/s/link-resolution")
+        elif comId is not None:url = api(f"/g/s-x{comId}/link-resolution")
+        else:raise TypeError("please put a comId")
 
         async with self.session.post(url, headers=headers.Headers(data=data).headers , data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
@@ -764,12 +738,3 @@ class SClient(Wss):
         async with self.session.post(api(f"/g/s/auth/register"), data=data, headers=headers.Headers(data=data).headers ) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json((await req.json()))
-
-    async def watch_ad(self, uid: str = None):
-        data = headers.AdHeaders(uid if uid else self.uid).data
-        async with self.session.post(tapjoy, json=data, headers=headers.AdHeaders().headers) as req:
-            print(req.status)
-            if req.status != 204:
-                return CheckExceptions(req.status)
-            else:
-                return Json(await req.text)

@@ -113,7 +113,7 @@ class Callbacks:
     async def call(self, type, data):
         if type in self.handlers:
             for handler in self.handlers[type]:
-                handler(data)
+                await handler(data)
 
     def event(self, type):
         def registerHandler(handler):

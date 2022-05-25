@@ -1,15 +1,17 @@
-### sockets are edited sockets from libs: Amino-sockets // amino.py
-
+# those sockets are based on: Amino-Sockets / Amino.py
+# Modified by SirLez, zett.0
 import requests
 import websocket
 import threading
 import time as timer
 import ujson as json
-from .lib import util
 from typing import BinaryIO
 from sys import _getframe as getframe
+
+from .lib import util, headers
 from .lib.objects import Event, Payload
 from .lib.exception import CheckExceptions as exception
+
 
 class Callbacks:
     def __init__(self):
@@ -357,7 +359,7 @@ class WssClient:
             },
             "t": 112
         }
-        timer.sleep(2)
+        timer.sleep(2.2)
         self.wss.send(data)
 
     def joinVideoChat(self, comId: str, chatId: str, joinType: int = 1):
@@ -379,7 +381,7 @@ class WssClient:
             },
             "t": 108
         }
-        timer.sleep(2)
+        timer.sleep(2.2)
         self.wss.send(data)
 
     def startVoiceChat(self, comId, chatId: str, joinType: int = 1):
@@ -400,7 +402,7 @@ class WssClient:
             },
             "t": 112
         }
-        timer.sleep(2)
+        timer.sleep(2.2)
         self.wss.send(data)
         data = {
             "o": {
@@ -411,7 +413,7 @@ class WssClient:
             },
             "t": 108
         }
-        timer.sleep(2)
+        timer.sleep(2.2)
         self.wss.send(data)
 
     def endVoiceChat(self, comId: str, chatId: str, leaveType: int = 2):
@@ -432,7 +434,7 @@ class WssClient:
             },
             "t": 112
         }
-        timer.sleep(2)
+        timer.sleep(2.2)
         self.wss.send(data)
 
     def joinVideoChatAsSpectator(self, comId: str, chatId: str):
@@ -452,7 +454,7 @@ class WssClient:
             },
             "t": 112
         }
-        timer.sleep(2)
+        timer.sleep(2.2)
         self.wss.send(data)
 
     def threadJoin(self, comId: str, chatId: str):
@@ -586,8 +588,11 @@ class Wss(Callbacks, WssClient):
             "NDCDEVICEID": self.client.deviceId,
             "NDCAUTH": self.client.sid,
             "NDC-MSG-SIG": util.s(data=final)}
-
-        self.socket = websocket.WebSocketApp(f"{self.socket_url}/?signbody={final.replace('|', '%7C')}", on_message=self.on_message, on_close=self.onClose, on_open=self.onOpen, header=self.headers)
+        self.socket = websocket.WebSocketApp(f"{self.socket_url}/?signbody={final.replace('|', '%7C')}",
+                                             on_message=self.on_message,
+                                             on_close=self.onClose,
+                                             on_open=self.onOpen,
+                                             header=self.headers)
         threading.Thread(target=self.socket.run_forever, kwargs={"ping_interval": 60}).start()
 
     def close(self):
@@ -611,8 +616,7 @@ class Wss(Callbacks, WssClient):
         else:return response.json()["mediaValue"]
 
     def sendWebActive(self, comId: str):
-
         data = {"ndcId": comId}
-        response = requests.post("https://aminoapps.com/api/community/stats/web-user-active-time", json=data, headers=self.web_headers)
+        response = requests.post("https://aminoapps.com/api/community/stats/web-user-active-time", json=data, headers=headers.Headers().web_headers)
         if response.json()["code"] != 200:return exception(response.json())
         else:return response

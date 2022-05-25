@@ -1,4 +1,4 @@
-import base64
+import os
 import requests
 import ujson as json
 from uuid import UUID
@@ -85,25 +85,8 @@ class Local:
         if req.status_code != 200: return CheckExceptions(req.json())
         return UserProfile(req.json()["userProfile"]).UserProfile
 
-    def get_wall_comments(self, userId: str, sorting: str, start: int = 0, size: int = 25):
-        sorting = sorting.lower()
-
-        if sorting == "newest": sorting = "newest"
-        elif sorting == "oldest": sorting = "oldest"
-        elif sorting == "top": sorting = "vote"
-        else: raise TypeError("حط تايب يا حمار")  # Not me typed this its (a7rf) //// a7a wtf
-
-        req = self.session.get(api(f"/x{self.comId}/s/user-profile/{userId}/comment?sort={sorting}&start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
-        if req.status_code != 200: return CheckExceptions(req.json())
-        return CommentList(req.json()["commentList"]).CommentList
 
     def get_all_users(self, type: str = "recent", start: int = 0, size: int = 25):
-        if type == "recent": type = "recent"
-        elif type == "banned": type = "banned"
-        elif type == "featured": type = "featured"
-        elif type == "leaders": type = "leaders"
-        elif type == "curators": type = "curators"
-
         req = self.session.get(api(f"/x{self.comId}/s/user-profile?type={type}&start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return UserProfileList(req.json()["userProfileList"]).UserProfileList
@@ -366,15 +349,6 @@ class Local:
 
         return res
 
-    def vote_comment(self, blogId: str, commentId: str, value: bool = True):
-        if value: value = 1
-        else: value = -1
-
-        data = json.dumps({"value": value, "timestamp": int(timestamp() * 1000)})
-        req = self.session.post(api(f"/x{self.comId}/s/blog/{blogId}/comment/{commentId}/vote?cv=1.2&value=1"), data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
-        if req.status_code != 200: return CheckExceptions(req.json())
-        return Json(req.json())
-
     def like_blog(self, blogId: str = None, wikiId: str = None):
         data = json.dumps({"value": 4, "timestamp": int(timestamp() * 1000)})
 
@@ -447,6 +421,51 @@ class Local:
         else: raise TypeError(" ")
 
         req = self.session.delete(url, headers=self.headers, proxies=self.proxies)
+        if req.status_code != 200: return CheckExceptions(req.json())
+        return Json(req.json())
+
+    def edit_comment(self, commentId: str, comment: str, userId: str = None, blogId: str = None, wikiId: str = None,replyTo: str = None, isGuest: bool = False):
+        data = {"content": comment, "timestamp": int(timestamp() * 1000)}
+        if isGuest: comType = "g-comment"
+        else: comType = "comment"
+        if userId: url = api(f"/x{self.comId}/s/user-profile/{userId}/{comType}/{commentId}")
+        elif blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/{comType}/{commentId}")
+        elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/{comType}/{commentId}")
+
+        data = json.dumps(data)
+        req = self.session.post(url, data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
+        if req.status_code != 200: return CheckExceptions(req.json())
+        return Comment(req.json()).Comments
+
+    def get_comment_info(self, commentId: str, userId: str = None, blogId: str = None, wikiId: str = None,replyTo: str = None, isGuest: bool = False):
+        if isGuest: comType = "g-comment"
+        else: comType = "comment"
+        if userId: url = api(f"/x{self.comId}/s/user-profile/{userId}/{comType}/{commentId}")
+        elif blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/{comType}/{commentId}")
+        elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/{comType}/{commentId}")
+
+        req = self.session.get(url, headers=self.headers, proxies=self.proxies)
+        if req.status_code != 200: return CheckExceptions(req.json())
+        return Comment(req.json()).Comments
+
+    def get_wall_comments(self, userId: str, sorting: str, start: int = 0, size: int = 25):
+        sorting = sorting.lower()
+
+        if sorting == "newest": sorting = "newest"
+        elif sorting == "oldest": sorting = "oldest"
+        elif sorting == "top": sorting = "vote"
+        else: raise TypeError("حط تايب يا حمار")  # Not me typed this its (a7rf) //// a7a wtf
+
+        req = self.session.get(api(f"/x{self.comId}/s/user-profile/{userId}/comment?sort={sorting}&start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
+        if req.status_code != 200: return CheckExceptions(req.json())
+        return CommentList(req.json()["commentList"]).CommentList
+
+    def vote_comment(self, blogId: str, commentId: str, value: bool = True):
+        if value: value = 1
+        else: value = -1
+
+        data = json.dumps({"value": value, "timestamp": int(timestamp() * 1000)})
+        req = self.session.post(api(f"/x{self.comId}/s/blog/{blogId}/comment/{commentId}/vote?cv=1.2&value=1"), data=data, headers=headers.Headers(data=data).headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return Json(req.json())
 
@@ -755,17 +774,6 @@ class Local:
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return Json(req.json())
 
-    def web_active_time(self):
-        try:
-            data = {"ndcId": self.comId}
-            req = self.session.post("https://aminoapps.com/api/community/stats/web-user-active-time", json=data, headers=self.web_headers)
-            try:
-                if req.json()["code"] != 200: return CheckExceptions(req.json())
-                else: Json(req.json())
-            except: return CheckExceptions(req.json())
-            return Json(req.json())
-        except: raise Exception("Unknown error")
-
     def block(self, userId: str):
         req = self.session.post(api(f"/x{self.comId}/s/block/{userId}"), headers=self.headers, proxies=self.proxies)
         if "OK" not in req.json()["api:message"]: return CheckExceptions(req.json())
@@ -781,7 +789,6 @@ class Local:
         if timers: data["userActiveTimeChunkList"] = timers
 
         data = json_minify(json.dumps(data))
-        print(self.comId)
         req = self.session.post(api(f"/x{self.comId}/s/community/stats/user-active-time"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return Json(req.json())
@@ -801,3 +808,8 @@ class Local:
         req = self.session.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/transfer-organizer/{requestId}/accept"), headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         else: return Json(req.json())
+
+    def remove_host(self, chatId: str, userId: str):
+        req = requests.Session().delete(api(f"/x{self.comId}/s/chat/thread/{chatId}/co-host/{userId}"), headers=headers)
+        if req.status_code != 200: return CheckExceptions(req.json())
+        return Json(req.json())

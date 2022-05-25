@@ -6,7 +6,7 @@ from .SAsync import *
 from requests import get
 
 try:
-    version = "2.0.0"
+    version = "2.0.8"
     newest = get("https://pypi.python.org/pypi/SAmino/json").json()["info"]["version"]
     if version != newest:
         print(f"\033[1;33mSAmino New Version!: {newest} (Your Using {version})\033[1;0m")

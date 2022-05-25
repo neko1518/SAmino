@@ -1,4 +1,4 @@
-
+import os
 import base64
 import aiohttp
 import asyncio
@@ -101,18 +101,6 @@ class SLocal:
             if req.status != 200: return CheckExceptions(await req.json())
             return UserProfile((await req.json())["userProfile"]).UserProfile
 
-    async def get_wall_comments(self, userId: str, sorting: str, start: int = 0, size: int = 25):
-        sorting = sorting.lower()
-
-        if sorting == "newest": sorting = "newest"
-        elif sorting == "oldest": sorting = "oldest"
-        elif sorting == "top": sorting = "vote"
-        else: raise TypeError("حط تايب يا حمار")  # Not me typed this its (a7rf) //// a7a wtf
-
-        async with self.session.get(api(f"/x{self.comId}/s/user-profile/{userId}/comment?sort={sorting}&start={start}&size={size}"), headers=self.headers) as req:
-            if req.status != 200: return CheckExceptions(await req.json())
-            return CommentList((await req.json())["commentList"]).CommentList
-
     async def get_all_users(self, type: str = "recent", start: int = 0, size: int = 25):
         if type == "recent": type = "recent"
         elif type == "banned": type = "banned"
@@ -214,7 +202,7 @@ class SLocal:
             data["extensions"] = None
 
         data = json.dumps(data)
-        async with self.session.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/message"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/message"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json((await req.json()))
 
@@ -254,7 +242,7 @@ class SLocal:
             data = json.dumps({"targetUidList": userId, "timestamp": int(timestamp() * 1000)})
         else: raise TypeError("Please put str or list of userId")
 
-        async with self.session.post(url, headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(url, headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
@@ -272,7 +260,7 @@ class SLocal:
             "timestamp": int(timestamp() * 1000)
         })
 
-        async with self.session.post(api(f"/x{self.comId}/s/chat/thread"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/chat/thread"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
@@ -305,7 +293,7 @@ class SLocal:
         if defaultBubbleId: data["extensions"] = {"async defaultBubbleId": defaultBubbleId}
 
         data = json.dumps(data)
-        async with self.session.post(api(f"/x{self.comId}/s/user-profile/{self.uid}"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/user-profile/{self.uid}"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             else: return Json(await req.json())
 
@@ -382,15 +370,6 @@ class SLocal:
 
         return res
 
-    async def vote_comment(self, blogId: str, commentId: str, value: bool = True):
-        if value: value = 1
-        else: value = -1
-
-        data = json.dumps({"value": value, "timestamp": int(timestamp() * 1000)})
-        async with self.session.post(api(f"/x{self.comId}/s/blog/{blogId}/comment/{commentId}/vote?cv=1.2&value=1"), data=data, headers=headers.Headers(data=data).headers, ) as req:
-            if req.status != 200: return CheckExceptions(await req.json())
-            return Json(await req.json())
-
     async def like_blog(self, blogId: str = None, wikiId: str = None):
         data = json.dumps({"value": 4, "timestamp": int(timestamp() * 1000)})
 
@@ -398,7 +377,7 @@ class SLocal:
         elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/vote?cv=1.2&value=4")
         else: raise TypeError("Please put wiki or blog Id")
 
-        async with self.session.post(url, headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(url, headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
@@ -415,7 +394,7 @@ class SLocal:
         t = []
         for title, color in zip(titles, colors): t.append({"title": title, "color": color})
         data = json.dumps({"adminOpName": 207, "adminOpValue": {"titles": t}, "timestamp": int(timestamp() * 1000)})
-        async with self.session.post(api(f"/x{self.comId}/s/user-profile/{userId}/admin"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/user-profile/{userId}/admin"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
@@ -466,9 +445,55 @@ class SLocal:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
+    async def edit_comment(self, commentId: str, comment: str, userId: str = None, blogId: str = None, wikiId: str = None,replyTo: str = None, isGuest: bool = False):
+        data = {"content": comment, "timestamp": int(timestamp() * 1000)}
+
+        if isGuest:comType = "g-comment"
+        else:comType = "comment"
+        if userId:url = api(f"/x{self.comId}/s/user-profile/{userId}/{comType}/{commentId}")
+        elif blogId:url = api(f"/x{self.comId}/s/blog/{blogId}/{comType}/{commentId}")
+        elif wikiId:url = api(f"/x{self.comId}/s/item/{wikiId}/{comType}/{commentId}")
+
+        data = json.dumps(data)
+        async with self.session.post(url, data=data, headers=headers.Headers(data=data).headers) as req:
+            if req.status != 200: return CheckExceptions(await req.json())
+            return Comment(await req.json()).Comments
+
+    async def get_comment_info(self, commentId: str, userId: str = None, blogId: str = None, wikiId: str = None, replyTo: str = None, isGuest: bool = False):
+        if isGuest:comType = "g-comment"
+        else:comType = "comment"
+        if userId: url = api(f"/x{self.comId}/s/user-profile/{userId}/{comType}/{commentId}")
+        elif blogId: url = api(f"/x{self.comId}/s/blog/{blogId}/{comType}/{commentId}")
+        elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}/{comType}/{commentId}")
+
+        async with self.session.get(url, headers=self.headers) as req:
+            if req.status != 200: return CheckExceptions(await req.json())
+            return Comment(await req.json()).Comments
+
+    async def get_wall_comments(self, userId: str, sorting: str, start: int = 0, size: int = 25):
+        sorting = sorting.lower()
+
+        if sorting == "newest": sorting = "newest"
+        elif sorting == "oldest": sorting = "oldest"
+        elif sorting == "top": sorting = "vote"
+        else: raise TypeError("حط تايب يا حمار")  # Not me typed this its (a7rf) //// a7a wtf
+
+        async with self.session.get(api(f"/x{self.comId}/s/user-profile/{userId}/comment?sort={sorting}&start={start}&size={size}"), headers=self.headers) as req:
+            if req.status != 200: return CheckExceptions(await req.json())
+            return CommentList((await req.json())["commentList"]).CommentList
+
+    async def vote_comment(self, blogId: str, commentId: str, value: bool = True):
+        if value: value = 1
+        else: value = -1
+
+        data = json.dumps({"value": value, "timestamp": int(timestamp() * 1000)})
+        async with self.session.post(api(f"/x{self.comId}/s/blog/{blogId}/comment/{commentId}/vote?cv=1.2&value=1"), data=data, headers=headers.Headers(data=data).headers, ) as req:
+            if req.status != 200: return CheckExceptions(await req.json())
+            return Json(await req.json())
+
     async def vote_poll(self, blogId: str, optionId: str):
         data = json.dumps({"value": 1, "timestamp": int(timestamp() * 1000)})
-        async with self.session.post(api(f"/x{self.comId}/s/blog/{blogId}/poll/option/{optionId}/vote"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/blog/{blogId}/poll/option/{optionId}/vote"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
@@ -509,19 +534,19 @@ class SLocal:
         else: raise TypeError("Please put a wiki or chat or blog Id")
 
         data = json.dumps(data)
-        async with self.session.post(url, headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(url, headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             else: return Json(await req.json())
 
     async def check_in(self, timezone: int = 180):
         data = json.dumps({"timezone": timezone, "timestamp": int(timestamp() * 1000)})
-        async with self.session.post(api(f"/x{self.comId}/s/check-in"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/check-in"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             else: return Json(await req.json())
 
     async def check_in_lottery(self, timezone: int = 180):
         data = json.dumps({"timezone": timezone, "timestamp": int(timestamp() * 1000)})
-        async with self.session.post(api(f"/x{self.comId}/s/check-in/lottery"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/check-in/lottery"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             else: return Json(await req.json())
 
@@ -540,7 +565,7 @@ class SLocal:
 
     async def invite_by_host(self, chatId: str, userId: [str, list]):
         data = json.dumps({"uidList": userId, "timestamp": int(timestamp() * 1000)})
-        async with self.session.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/avchat-members"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/chat/thread/{chatId}/avchat-members"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             else: return Json(await req.json())
 
@@ -557,7 +582,7 @@ class SLocal:
             "timestamp": int(timestamp() * 1000)
         })
 
-        async with self.session.post(api(f"/x{self.comId}/s/notice"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/notice"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
@@ -570,7 +595,7 @@ class SLocal:
             "timestamp": int(timestamp() * 1000)
         })
 
-        async with self.session.post(api(f"/x{self.comId}/s/user-profile/{userId}/ban"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/user-profile/{userId}/ban"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
@@ -580,7 +605,7 @@ class SLocal:
             "timestamp": int(timestamp() * 1000)
         })
 
-        async with self.session.post(api(f"/x{self.comId}/s/user-profile/{userId}/unban"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/user-profile/{userId}/unban"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
@@ -596,7 +621,7 @@ class SLocal:
         else: raise TypeError("Please put a wiki or user or chat or blog Id")
 
         data = {"adminOpNote": {"content": note}, "adminOpName": opN, "adminOpValue": opV, "timestamp": int(timestamp() * 1000)}
-        async with self.session.post(url, headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(url, headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
@@ -618,7 +643,7 @@ class SLocal:
             "timestamp": int(timestamp() * 1000)
         }
 
-        async with self.session.post(url, headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(url, headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
@@ -634,13 +659,13 @@ class SLocal:
             "timestamp": int(timestamp() * 1000)
         })
 
-        async with self.session.post(api(f"/x{self.comId}/s/notice"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/notice"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
     async def invite_to_voice_chat(self, userId: str = None, chatId: str = None):
         data = json.dumps({"uid": userId, "timestamp": int(timestamp() * 1000)})
-        async with self.session.post(api(f"/g/x{self.comId}/chat/thread/{chatId}/vvchat-presenter/invite"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/g/x{self.comId}/chat/thread/{chatId}/vvchat-presenter/invite"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
@@ -658,7 +683,7 @@ class SLocal:
         }
         data = json.dumps(data)
 
-        async with self.session.post(api(f"/x{self.comId}/s/blog"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/blog"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
@@ -676,7 +701,7 @@ class SLocal:
         if icon: data["icon"] = icon
 
         data = json.dumps(data)
-        async with self.session.post(api(f"/x{self.comId}/s/item"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/item"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
@@ -717,7 +742,7 @@ class SLocal:
             "timestamp": int(timestamp() * 1000)
         }
         data = json.dumps(data)
-        async with self.session.post(api(f"/x{self.comId}/s/knowledge-base-request"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/knowledge-base-request"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             else: return Json(await req.json())
 
@@ -735,7 +760,7 @@ class SLocal:
         else: raise TypeError("Please put blogId or wikiId")
 
         data = json.dumps(data)
-        async with self.session.post(url, headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(url, headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
@@ -748,7 +773,7 @@ class SLocal:
         data = {"bubbleId": bubbleId, "applyToAll": apply, "timestamp": int(timestamp() * 1000)}
         if chatId: data["threadId"] = chatId
         data = json.dumps(data)
-        async with self.session.post(api(f"/x{self.comId}/s/chat/thread/apply-bubble"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/chat/thread/apply-bubble"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             else: return Json(await req.json())
 
@@ -801,7 +826,7 @@ class SLocal:
         if timers: data["userActiveTimeChunkList"] = timers
 
         data = json_minify(json.dumps(data))
-        async with self.session.post(api(f"/x{self.comId}/s/community/stats/user-active-time"), headers=headers.Headers(data=data).headers, proxies=self.proxies, data=data) as req:
+        async with self.session.post(api(f"/x{self.comId}/s/community/stats/user-active-time"), headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             else: return Json(await req.json())
 
