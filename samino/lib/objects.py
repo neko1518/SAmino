@@ -4314,15 +4314,6 @@ class Login:
         self.nickname = data["account"]["nickname"]
         self.aminoId = data["account"]["aminoId"]
 
-
-class AccountInfo:
-    def __init__(self, data):
-        self.json = data
-        self.time = data["modifiedTime"]
-        self.email = data["email"]
-        self.aminoId = data["aminoId"]
-
-
 class Json:
     def __init__(self, data):
         self.json = data

@@ -34,16 +34,13 @@ class Client(Wss):
         else: headers.sid = sid
         self.headers = headers.Headers().headers
 
-        req = self.session.get(api(f"/g/s/account"), headers=self.headers, proxies=self.proxies)
-        info = Account(req.json()["account"])
-
-        headers.uid = info.userId
-        self.uid = info.userId
-        self.sid = headers.sid
-        self.launch()
-
-        if req.status_code != 200: return CheckExceptions(req.json())
-        else: return info
+        try:
+            info = self.get_account_info().userId
+            self.uid = info
+            self.sid = headers.sid
+            self.launch()
+            return info
+        except Exception as e: print(f"\nError getting user info in sid_login: {e}\n")
 
     def login(self, email: str = None, password: str = None, secret: str = None,socket: bool = False):
         data = {
@@ -73,7 +70,6 @@ class Client(Wss):
             self.headers["NDCAUTH"] = self.sid
             self.secret = req.json()["secret"]
             headers.sid = self.sid
-            headers.uid = self.uid
             self.headers = headers.Headers().headers
             self.web_headers = headers.Headers().web_headers
             if socket:self.launch()
@@ -94,7 +90,6 @@ class Client(Wss):
             self.sid = None
             self.uid = None
             headers.sid = None
-            headers.uid = None
             if self.isOpened:self.close()
             else:pass
             return Json(req.json())
@@ -177,7 +172,7 @@ class Client(Wss):
     def get_account_info(self):
         req = self.session.get(api(f"/g/s/account"), headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
-        return AccountInfo(req.json()["account"])
+        return Account(req.json()["account"])
 
     def claim_coupon(self):
         req = self.session.post(api(f"/g/s/coupon/new-user-coupon/claim"), headers=self.headers, proxies=self.proxies)
@@ -659,6 +654,11 @@ class Client(Wss):
             headers=self.headers, proxies=self.proxies)
         if req.status_code != 200: return CheckExceptions(req.json())
         return CommunityList(req.json()["communityList"]).CommunityList
+
+    def search_community(self, word: str,lang: str = "ar", start: int = 0, size: int = 25):
+        req = self.session.get(api(f"/g/s/community/search?q={word}&language={lang}&completeKeyword=1&start={start}&size={size}"), headers=self.headers, proxies=self.proxies)
+        if req.status_code != 200: return CheckExceptions(req.json())
+        else: return CommunityList(req.json()["communityList"]).CommunityList
 
     def invite_to_voice_chat(self, userId: str = None, chatId: str = None):
         data = json.dumps({"uid": userId, "timestamp": int(timestamp() * 1000)})

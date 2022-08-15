@@ -3,11 +3,9 @@ import random
 import string
 from .util import c, s, uu
 
-uid = None
 sid = None
 deviceId = None
 lang = None
-
 
 class Headers:
     def __init__(self, data=None):
@@ -36,9 +34,6 @@ class Headers:
         if sid:
             self.headers["NDCAUTH"] = sid
             self.web_headers["cookie"] = sid
-
-        if uid:
-            self.uid = uid
 
         if data:
             self.headers["Content-Length"] = str(len(data))
