@@ -38,6 +38,7 @@ class Client(Wss):
             info = self.get_account_info().userId
             self.uid = info
             self.sid = headers.sid
+            headers.uid = self.uid
             self.launch()
             return info
         except Exception as e: print(f"\nError getting user info in sid_login: {e}\n")
@@ -70,6 +71,7 @@ class Client(Wss):
             self.headers["NDCAUTH"] = self.sid
             self.secret = req.json()["secret"]
             headers.sid = self.sid
+            headers.uid = self.uid
             self.headers = headers.Headers().headers
             self.web_headers = headers.Headers().web_headers
             if socket:self.launch()
@@ -90,6 +92,7 @@ class Client(Wss):
             self.sid = None
             self.uid = None
             headers.sid = None
+            headers.uid = None
             if self.isOpened:self.close()
             else:pass
             return Json(req.json())

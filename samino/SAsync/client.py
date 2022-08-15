@@ -55,6 +55,7 @@ class SClient(Wss):
             info = (await self.get_account_info()).userId
             self.uid = info
             self.sid = headers.sid
+            headers.uid = self.uid
             await self.Start()
             return info
         except Exception as e: print(f"\nError -- getting user info in sid_login: {e}\n")
