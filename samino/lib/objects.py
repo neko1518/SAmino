@@ -1,4 +1,4 @@
-# Amino.py
+# Most of the Objects are from Amino.py (Not All)
 class UserProfile:
     def __init__(self, data):
         self.json = data
@@ -1793,7 +1793,6 @@ class WalletHistory:
 
         return self
 
-
 class UserAchievements:
     def __init__(self, data):
         self.json = data
@@ -1854,52 +1853,33 @@ class UserSavedBlogs:
 
         return self
 
-class GetWikiInfo:
+class GetInfo:
     def __init__(self, data):
         self.json = data
-
-        try: self.wiki: Wiki = Wiki(data["item"]).Wiki
-        except (KeyError, TypeError): self.wiki: Wiki = Wiki([])
-
         self.inMyFavorites = None
         self.isBookmarked = None
+        self.folderCount = None
+        self.fileCount = None
+
+        if data.get('blog', None):
+            try: self.blog: Blog = Blog(data["blog"]).Blog
+            except (KeyError, TypeError): self.blog: Blog = Blog([])
+        elif data.get('item', None):
+            try: self.wiki: Wiki = Wiki(data["item"]).Wiki
+            except (KeyError, TypeError): self.wiki: Wiki = Wiki([])
+        elif data.get('file', None):
+            try: self.folder: SharedFolderFile = SharedFolderFile(data['file']).SharedFolderFile
+            except (KeyError, TypeError): self.folder: SharedFolderFile = SharedFolderFile([])
 
     @property
-    def GetWikiInfo(self):
+    def GetInfo(self):
         try: self.inMyFavorites = self.json["inMyFavorites"]
         except (KeyError, TypeError): pass
         try: self.isBookmarked = self.json["isBookmarked"]
         except (KeyError, TypeError): pass
-
-        return self
-
-class GetBlogInfo:
-    def __init__(self, data):
-        self.json = data
-
-        try: self.blog: Blog = Blog(data["blog"]).Blog
-        except (KeyError, TypeError): self.blog: Blog = Blog([])
-
-        self.isBookmarked = None
-
-    @property
-    def GetBlogInfo(self):
-        try: self.isBookmarked = self.json["isBookmarked"]
+        try: self.folderCount = self.json['file']["folderCount"]
         except (KeyError, TypeError): pass
-
-        return self
-
-class GetSharedFolderInfo:
-    def __init__(self, data):
-        self.json = data
-        self.folderCount = None
-        self.fileCount = None
-
-    @property
-    def GetSharedFolderInfo(self):
-        try: self.folderCount = self.json["folderCount"]
-        except (KeyError, TypeError): pass
-        try: self.fileCount = self.json["fileCount"]
+        try: self.fileCount = self.json['file']["fileCount"]
         except (KeyError, TypeError): pass
 
         return self
@@ -3470,6 +3450,32 @@ class Event:
 
         return self
 
+class UsersActions:
+    def __init__(self, data):
+        self.json = data
+        self.numbers = None
+        self.ActionType = None
+        self.chatId = None
+        self.comId = None
+
+        try: self.author_list: UserProfileList = UserProfileList(self.json['o']['userProfileList']).UserProfileList
+        except (TypeError, KeyError): self.author: UserProfile = UserProfileList([])
+
+        try: self.author: UserProfile = UserProfile(self.json['o']['userProfileList'][0]).UserProfile
+        except (TypeError, KeyError): self.author: UserProfile = UserProfile([])
+
+    @property
+    def UsersActions(self):
+        try: self.numbers = self.json['o']['userProfileCount']
+        except (KeyError, TypeError): pass
+        try: self.ActionType = self.json['t']
+        except (KeyError, TypeError): pass
+        try: self.chatId = str(self.json['o'].get('topic', 0)).split(':')[3]
+        except (KeyError, TypeError, IndexError): pass
+        try: self.comId = self.json['o']['ndcId']
+        except (KeyError, TypeError): pass
+
+        return self
 
 class JoinRequest:
     def __init__(self, data):
@@ -4313,15 +4319,6 @@ class Login:
         self.sid = data["sid"]
         self.nickname = data["account"]["nickname"]
         self.aminoId = data["account"]["aminoId"]
-
-
-class AccountInfo:
-    def __init__(self, data):
-        self.json = data
-        self.time = data["modifiedTime"]
-        self.email = data["email"]
-        self.aminoId = data["aminoId"]
-
 
 class Json:
     def __init__(self, data):

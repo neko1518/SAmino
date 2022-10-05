@@ -19,13 +19,12 @@ class SClient(Wss):
         self.Trace = Trace
         self.uid = None
         self.secret = None
-        
         headers.deviceId = deviceId
+        Wss.__init__(self, client=self, ses=self.session, Trace=self.Trace)
         self.deviceId = headers.Headers().deviceId
         self.headers = headers.Headers().headers
         self.web_headers = headers.Headers().web_headers
         self.session = aiohttp.ClientSession()
-        Wss.__init__(self, client=self, ses=self.session, Trace=self.Trace)
 
     async def __aenter__(self) -> "SClient":
         return self
@@ -50,16 +49,16 @@ class SClient(Wss):
     async def sid_login(self, sid: str):
         if "sid=" not in sid: headers.sid = f"sid={sid}"
         else: headers.sid = sid
+        self.headers = headers.Headers().headers
 
-        async with self.session.get(api(f"/g/s/account"), headers=headers.Headers().headers) as req:
-
-            info = Account((await req.json())["account"])
-            headers.uid = info.userId
-            self.uid = info.userId
-            self.sid = sid
+        try:
+            info = (await self.get_account_info()).userId
+            self.uid = info
+            self.sid = headers.sid
+            headers.uid = self.uid
             await self.Start()
-            if req.status != 200:return CheckExceptions(await req.json())
-            else:return info
+            return info
+        except Exception as e: print(f"\nError -- getting user info in sid_login: {e}\n")
 
     async def login(self, email: str = None, password: str = None, secret: str = None,socket: bool = False):
         data = {
@@ -187,7 +186,7 @@ class SClient(Wss):
     async def get_account_info(self):
         async with self.session.get(api(f"/g/s/account"), headers=self.headers ) as req:
             if req.status != 200: return CheckExceptions(((await req.json())))
-            return AccountInfo(((await req.json()))["account"])
+            return Account(((await req.json()))["account"])
 
     async def claim_coupon(self):
         async with self.session.post(api(f"/g/s/coupon/new-user-coupon/claim"), headers=self.headers) as req:
@@ -302,6 +301,35 @@ class SClient(Wss):
             if req.status != 200: return CheckExceptions(await req.json())
             return Json((await req.json()))
 
+    async def flag(self, reason: str, type: str = "spam", userId: str = None, wikiId: str = None, blogId: str = None):
+        types = {"violence": 106, "hate": 107, "suicide": 108, "troll": 109, "nudity": 110, "bully": 0, "off-topic": 4, "spam": 2}
+
+        data = {
+            "message": reason,
+            "timestamp": int(timestamp() * 1000)
+        }
+
+        if type in types:
+            data["flagType"] = types[type]
+
+        if userId:
+            data["objectId"] = userId
+            data['objectType'] = 0
+
+        elif blogId:
+            data["objectId"] = blogId
+            data['objectType'] = 1
+
+        elif wikiId:
+            data["objectId"] = wikiId
+            data["objectType"] = 2
+        else: raise TypeError("choose a certain type to report")
+
+        data = json.dumps(data)
+        async with self.session.post(api(f"/g/s/flag", headers=headers.Headers(data=data).headers, data=data)) as req:
+            if req.status != 200: return CheckExceptions(await req.json())
+            else: return Json(await req.json())
+
     async def unfollow(self, userId: str):
         async with self.session.post(api(f"/g/s/user-profile/{userId}/member/{self.uid}"), headers=self.headers ) as req:
             if req.status != 200: return CheckExceptions(await req.json())
@@ -406,6 +434,7 @@ class SClient(Wss):
             data["type"] = 3
 
         if snippetLink and snippetImage:
+            data["attachedObject"] = None
             data["extensions"]["linkSnippetList"] = [{
                 "link": snippetLink,
                 "mediaType": 100,
@@ -442,7 +471,7 @@ class SClient(Wss):
             data["extensions"] = None
 
         data = json.dumps(data)
-        async with self.session.post(api(f"/g/s/chat/thread/{chatId}/message/{message}"),headers=headers.Headers(data=data).headers , data=data) as req:
+        async with self.session.post(api(f"/g/s/chat/thread/{chatId}/message"),headers=headers.Headers(data=data).headers , data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json((await req.json()))
 
@@ -613,6 +642,11 @@ class SClient(Wss):
             api(f"/g/s/topic/0/feed/community?type={type}&categoryKey={category}&moduleId=64da14e8-0845-47bf-946a-17403bd6aa17&size={size}&pagingType={pagingType}"),headers=self.headers ) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return CommunityList((await req.json())["communityList"]).CommunityList
+        
+    async def search_community(self, word: str,lang: str = "ar", start: int = 0, size: int = 25):
+        async with self.session.get(api(f"/g/s/community/search?q={word}&language={lang}&completeKeyword=1&start={start}&size={size}"), headers=self.headers) as req:
+            if req.status != 200: return CheckExceptions(await req.json())
+            else: return CommunityList((await req.json())["communityList"]).CommunityList
 
     async def invite_to_voice_chat(self, userId: str = None, chatId: str = None):
         data = json.dumps({"uid": userId, "timestamp": int(timestamp() * 1000)})

@@ -7,9 +7,10 @@ import threading
 import websockets
 from ..lib import *
 import ujson as json
+from typing import Union
 from typing import BinaryIO
 from sys import _getframe as getframe
-from ..lib.objects import Event, Payload
+from ..lib.objects import Event, Payload, UsersActions
 from ..lib.exception import CheckExceptions as exception
 
 class Callbacks:
@@ -18,8 +19,7 @@ class Callbacks:
 
         self.methods = {
             10: self._resolve_payload,
-            304: self._resolve_chat_action_start,
-            306: self._resolve_chat_action_end,
+            400: self._resolve_topics,
             1000: self._resolve_chat_message
         }
 
@@ -82,12 +82,12 @@ class Callbacks:
             "68": self.on_member_remove_you_cohost
         }
 
-        self.chat_actions_start = {
-            "Typing": self.on_user_typing_start,
-        }
-
-        self.chat_actions_end = {
-            "Typing": self.on_user_typing_end,
+        self.topics = {
+            "online-members": self.on_online_users_update,
+            "users-start-typing-at": self.on_user_typing_start,
+            "users-end-typing-at": self.on_user_typing_end,
+            "users-start-recording-at": self.on_voice_chat_start,
+            "users-end-recording-at": self.on_voice_chat_end
         }
 
     async def _resolve_payload(self, data):
@@ -98,13 +98,9 @@ class Callbacks:
         key = f"{data['o']['chatMessage']['type']}:{data['o']['chatMessage'].get('mediaType', 0)}"
         return await self.chat_methods.get(key, self.default)(data)
 
-    async def _resolve_chat_action_start(self, data):
-        key = data['o'].get('actions', 0)
-        return await self.chat_actions_start.get(key, self.default)(data)
-
-    async def _resolve_chat_action_end(self, data):
-        key = data['o'].get('actions', 0)
-        return await self.chat_actions_end.get(key, self.default)(data)
+    async def _resolve_topics(self, data):
+        key = str(data['o'].get('topic', 0)).split(":")[2]
+        return await self.topics.get(key, self.default)(data)
 
     def resolve(self, data):
         data = json.loads(data)
@@ -180,8 +176,9 @@ class Callbacks:
     async def on_welcome_message(self, data): await self.call(getframe(0).f_code.co_name, Event(data["o"]).Event)
     async def on_invite_message(self, data): await self.call(getframe(0).f_code.co_name, Event(data["o"]).Event)
 
-    async def on_user_typing_start(self, data): await self.call(getframe(0).f_code.co_name, Event(data["o"]).Event)
-    async def on_user_typing_end(self, data): await self.call(getframe(0).f_code.co_name, Event(data["o"]).Event)
+    async def on_user_typing_start(self, data): await self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
+    async def on_user_typing_end(self, data): await self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
+    async def on_online_users_update(self, data): await self.call(getframe(0).f_code.co_name, UsersActions(data).UsersActions)
 
     async def default(self, data): await self.call(getframe(0).f_code.co_name, data)
 
@@ -286,7 +283,7 @@ class Actions:
         self.default()
         return SetAction(self.socket, data)
 
-    def Custom(self, actions: [str, list], target: str, params: dict):
+    def Custom(self, actions: Union[str, list], target: str, params: dict):
 
         data = {
             "o": {
@@ -447,22 +444,52 @@ class WssClient:
 
         threading.Thread(target=self.videoPlayer, args=(comId, chatId, path, title, await self.wss.uploadMedia(background, "image"), duration)).start()
 
-    async def getActionUsers(self, comId: str, path: str):
+    async def GetUsersActions(self, comId: str, path: int = 0, chatId: str = None):
+        """
+            Get users actions:
+            This functions gets certain socket actions happening
+            such as online users and users chatting
+
+            Parameters
+            ----------
+            comId : int
+                the community id -required
+            path : int
+                takes an intger >= 0 and <= 5 each one sends a certain action
+                not required -set by default to 0 // users-chatting
+            chatId : str
+                the chatId used in certain actions such as 'users-start-typing-at -Optional
+                
+            Returns
+            ----------
+            A Class property if there is a new message it will contain a userProfileList
+            you can explore 'UsersActions' in objects file  
+        """
+        acts = {
+            0: "users-chatting",
+            1: "online-members",
+            2: "users-start-typing-at",
+            3: "users-end-typing-at",
+            4: "users-start-recording-at",
+            5: "users-start-recording-at"
+        }
+
+        if chatId: topic = f'{acts.get(path, "users-chatting")}:{chatId}'
+        else: topic = acts.get(path, "users-chatting")
 
         data = {
             "o": {
                 "ndcId": int(comId),
-                "topic": f"ndtopic:x{comId}:{path}",
+                "topic": f"ndtopic:x{comId}:{topic}",
                 "id": "4538416"
             },
             "t": 300
         }
-        await asyncio.sleep(2)
+
+        asyncio.sleep(2.2)
         await self.wss.send(data)
-        data["t"] += 2
-        await self.wss.send(data)
-        await asyncio.sleep(0.50)
-        return await self.wss.receive()
+        if (await self.wss.receive()): return UsersActions((await self.wss.receive())).UsersActions
+        else: print('\nWaiting for messages . . .\n')
 
     async def actions(self, comId: str, chatId: str):
         threading.Thread(target=await self.wss.sendWebActive, args=(comId, )).start()

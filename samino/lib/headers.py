@@ -1,6 +1,6 @@
 import json
-import random
-import string
+import sys
+
 from .util import c, s, uu
 
 uid = None
@@ -11,15 +11,18 @@ lang = None
 
 class Headers:
     def __init__(self, data=None):
-        if deviceId: self.deviceId = deviceId
-        else: self.deviceId = c()
+        if deviceId:
+            self.deviceId = deviceId
+        else:
+            self.deviceId = c()
 
+        version = sys.version_info
         self.headers = {
             "NDCDEVICEID": self.deviceId,
             "AUID": uu(),
             "SMDEVICEID": uu(),
             "Content-Type": "application/json; charset=utf-8",
-            "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 7.1.2; SM-N975F Build/samsung-user 7.1.2 2; com.narvii.amino.master/3.4.33602)",
+            "User-Agent": f"python/{version.major}.{version.minor}.{version.micro} (python-requests/2.25; SAmino/2.3.1)",
             "Host": "service.narvii.com",
             "Accept-Encoding": "gzip",
             "Connection": "Upgrade"
@@ -42,7 +45,10 @@ class Headers:
 
         if data:
             self.headers["Content-Length"] = str(len(data))
-            if type(data) is not str: data = json.dumps(data)
+
+            if type(data) is not str:
+                data = json.dumps(data)
+
             self.headers["NDC-MSG-SIG"] = s(data)
 
         if lang:

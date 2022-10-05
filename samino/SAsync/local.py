@@ -516,14 +516,15 @@ class SLocal:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
 
-    async def get_blog_info(self, blogId: str = None, wikiId: str = None):
+    async def get_blog_info(self, blogId: str = None, wikiId: str = None, folderId: str = None):
         if blogId: url = api(f"/x{self.comId}/s/blog/{blogId}")
         elif wikiId: url = api(f"/x{self.comId}/s/item/{wikiId}")
+        elif folderId: url = api(f"/x{self.comId}/s/shared-folder/files/{folderId}")
         else: raise TypeError("Please put a wiki or blog Id")
 
         async with self.session.get(url, headers=self.headers) as req:
             if req.status != 200: return CheckExceptions(await req.json())
-            return Blog((await req.json())["blog"]).Blog
+            return GetInfo(await req.json()).GetInfo
 
     async def get_blogs(self, start: int = 0, size: int = 25):
         async with self.session.get(api(f"/x{self.comId}/s/feed/featured?start={start}&size={size}"), headers=self.headers) as req:
@@ -587,14 +588,23 @@ class SLocal:
             if req.status != 200: return CheckExceptions(await req.json())
             else: return Json(await req.json())
 
-    async def strike(self, userId: str, time: int, title: str = None, reason: str = None):
+    async def strike(self, userId: str, time: str, title: str = None, reason: str = None):
+        times = {
+            "1-Hours": 3600,
+            "3-Hours": 10800,
+            "6-Hours": 21600,
+            "12-Hours": 43200,
+            "24-Hours": 86400,
+        }
+        StrikeTime = times.get(time, 3600)
+
         data = json.dumps({
             "uid": userId,
             "title": title,
             "content": reason,
             "attachedObject": {"objectId": userId, "objectType": 0},
             "penaltyType": 1,
-            "penaltyValue": time,
+            "penaltyValue": StrikeTime,
             "adminOpNote": {},
             "noticeType": 4,
             "timestamp": int(timestamp() * 1000)
@@ -638,9 +648,14 @@ class SLocal:
         elif chatId: url = api(f"/x{self.comId}/s/chat/thread/{chatId}/admin")
         else: raise TypeError("Please put a wiki or user or chat or blog Id")
 
-        data = {"adminOpName": opN, "adminOpValue": opV, "timestamp": int(timestamp() * 1000)}
+        data = {
+            "adminOpName": opN,
+            "adminOpValue": opV,
+            "timestamp": int(timestamp() * 1000)
+        }
         if note: data["adminOpNote"] = {"content": note}
         data = json.dumps(data)
+        
         async with self.session.post(url, headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
@@ -663,6 +678,7 @@ class SLocal:
         }
         if note: data["adminOpNote"] = {"content": note}
         data = json.dumps(data)
+
         async with self.session.post(url, headers=headers.Headers(data=data).headers, data=data) as req:
             if req.status != 200: return CheckExceptions(await req.json())
             return Json(await req.json())
@@ -836,6 +852,35 @@ class SLocal:
         async with self.session.post(api(f"/x{self.comId}/s/block/{userId}"), headers=self.headers) as req:
             if "OK" not in (await req.json())["api:message"]: return CheckExceptions(await req.json())
             return Json(await req.json())
+
+    async def flag(self, reason: str, type: str = "spam", userId: str = None, wikiId: str = None, blogId: str = None):
+        types = {"violence": 106, "hate": 107, "suicide": 108, "troll": 109, "nudity": 110, "bully": 0, "off-topic": 4, "spam": 2}
+
+        data = {
+            "message": reason,
+            "timestamp": int(timestamp() * 1000)
+        }
+
+        if type in types:
+            data["flagType"] = types[type]
+
+        if userId:
+            data["objectId"] = userId
+            data['objectType'] = 0
+
+        elif blogId:
+            data["objectId"] = blogId
+            data['objectType'] = 1
+
+        elif wikiId:
+            data["objectId"] = wikiId
+            data["objectType"] = 2
+        else: raise TypeError("choose a certain type to report")
+
+        data = json.dumps(data)
+        async with self.session.post(api(f"/x{self.comId}/s/flag", headers=headers.Headers(data=data).headers, data=data)) as req:
+            if req.status != 200: return CheckExceptions(await req.json())
+            else: return Json(await req.json())
 
     async def send_active_time(self,tz: int = int(-timezone // 1000), timers: list = None):
         data = {
