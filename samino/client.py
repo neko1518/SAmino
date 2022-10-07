@@ -4,6 +4,7 @@ from time import time as timestamp
 from typing import BinaryIO
 from typing import Union
 from uuid import UUID
+from requests import Session
 
 import ujson as json
 
@@ -25,7 +26,7 @@ class Client(Wss):
         Wss.__init__(self, self, trace=self.trace)
         self.deviceId = headers.Headers().deviceId
         self.headers = headers.Headers().headers
-        self.session = requests.Session()
+        self.session = Session()
 
     def change_lang(self, lang: str = "ar-SY"):
         headers.lang = lang

@@ -5,6 +5,7 @@ from time import timezone
 from typing import BinaryIO
 from typing import Union
 from uuid import UUID
+from requests import Session
 
 import ujson as json
 from json_minify import json_minify
@@ -21,7 +22,7 @@ class Local:
         self.sid = headers.sid
         self.headers = headers.Headers().headers
         self.web_headers = headers.Headers().web_headers
-        self.session = requests.Session()
+        self.session = Session()
 
     def get_video_rep_info(self, chatId: str):
         req = self.session.get(api(f"/x{self.comId}/s/chat/thread/{chatId}/avchat-reputation"), headers=self.headers,

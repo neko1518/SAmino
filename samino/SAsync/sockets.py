@@ -1,4 +1,5 @@
-### sockets are edited sockets from libs: Amino-sockets // amino.py
+# those sockets are based on: Amino-Sockets / Amino.py
+# Modified by SirLez, zett.0, Bovonos
 
 import time
 import asyncio

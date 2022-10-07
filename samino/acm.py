@@ -1,6 +1,7 @@
 from time import time as timestamp
 
 import ujson as json
+from requests import Session
 
 from .lib import *
 from .lib import CheckExceptions
@@ -14,7 +15,7 @@ class Acm:
         self.uid = headers.Headers().uid
         self.headers = headers.Headers().headers
         self.api = "https://service.narvii.com/api/v1"
-        self.session = requests.Session()
+        self.session = Session()
 
     def promote(self, userId: str, rank: str):
         rank = rank.lower()

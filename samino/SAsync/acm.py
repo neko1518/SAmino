@@ -15,7 +15,7 @@ class SAcm:
         self.api = "https://service.narvii.com/api/v1"
         self.session = aiohttp.ClientSession()
 
-    async def __aenter__(self) -> "SClient":
+    async def __aenter__(self):
         return self
 
     async def __aexit__(self, *args) -> None:
