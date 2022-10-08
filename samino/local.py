@@ -142,9 +142,13 @@ class Local:
 
         mentions = []
         if mentionUserIds:
-            for mention_uid in mentionUserIds: mentions.append({"uid": mention_uid})
+            if type(mentionUserIds) is list:
+                for mention_uid in mentionUserIds: mentions.append({"uid": mention_uid})
+            mentions.append({"uid": mentionUserIds})
 
-        if embedImage: embedImage = [[100, self.upload_media(embedImage, "image"), None]]
+        if embedImage:
+            if type(embedImage) is not str: embedImage = [[100, self.upload_image(embedImage, "image"), None]]
+            embedImage = [[100, embedImage, None]]
 
         data = {
             "type": messageType,

@@ -441,7 +441,7 @@ class Client(Wss):
         return CommentList(req.json()["commentList"]).CommentList
 
     def send_message(self, chatId: str, message: str = None, messageType: int = 0, file: BinaryIO = None,
-                     fileType: str = None, replyTo: str = None, mentionUserIds: list = None, stickerId: str = None,
+                     fileType: str = None, replyTo: str = None, mentionUserIds: [list, str] = None, stickerId: str = None,
                      snippetLink: str = None, ytVideo: str = None, snippetImage: BinaryIO = None, embedId: str = None,
                      embedType: int = None, embedLink: str = None, embedTitle: str = None, embedContent: str = None,
                      embedImage: BinaryIO = None):
@@ -449,9 +449,13 @@ class Client(Wss):
 
         mentions = []
         if mentionUserIds:
-            for mention_uid in mentionUserIds: mentions.append({"uid": mention_uid})
+            if type(mentionUserIds) is list:
+                for mention_uid in mentionUserIds: mentions.append({"uid": mention_uid})
+            mentions.append({"uid": mentionUserIds})
 
-        if embedImage: embedImage = [[100, self.upload_image(embedImage), None]]
+        if embedImage:
+            if type(embedImage) is not str: embedImage = [[100, self.upload_image(embedImage), None]]
+            embedImage = [[100, embedImage, None]]
 
         data = {
             "type": messageType,
