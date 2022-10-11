@@ -15,7 +15,7 @@ from .sockets import Wss
 
 
 class Client(Wss):
-    def __init__(self, deviceId: str = None, proxies: dict = None, trace: bool = False):
+    def __init__(self, deviceId: str = None, proxies: dict = None, trace: bool = False, uid):
         self.sid = None
         self.web_headers = None
         self.trace = trace
