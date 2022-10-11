@@ -20,7 +20,7 @@ class Client(Wss):
         self.web_headers = None
         self.trace = trace
         self.proxies = proxies
-        self.uid = None
+        self.uid = uid
         self.secret = None
         headers.deviceId = deviceId
         Wss.__init__(self, self, trace=self.trace)
